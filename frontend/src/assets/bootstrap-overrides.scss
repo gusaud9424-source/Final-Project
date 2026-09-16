@@ -1,0 +1,31 @@
+// SecuQuest — Bootstrap 5 SCSS 오버라이드
+// Layout inspired by publicly viewable UI of Modulabs AX Education,
+// reinterpreted for SecuQuest bootcamp capstone (educational use only).
+// © 2026 5팀_Security Learning Platform
+//
+// 주의: HEX 값은 design-tokens.css 와 이 파일 양쪽에 동일하게 하드코딩되어 있다.
+// 향후 색상을 변경할 때는 반드시 두 파일(design-tokens.css / bootstrap-overrides.scss)을
+// 동시에 수정할 것. SCSS 변수에 var(--sq-*) 를 넣지 않는 이유는 Bootstrap 이
+// darken() 등 컴파일 타임 색상 함수를 사용하기 때문 (CSS 변수는 컴파일 타임에 계산 불가).
+
+// 1. SCSS 변수 오버라이드
+$primary: #3659BE;
+$body-color: #1A1D2A;
+$body-bg: transparent; // Bootstrap 기본 배경(#fff)이 그라데이션을 가리는 것 방지
+$border-radius: 14px;
+$border-radius-lg: 18px;
+$border-radius-sm: 10px;
+$font-family-sans-serif: "Pretendard", -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", "Noto Sans KR", sans-serif;
+
+// 2. Bootstrap 원본 import (변수 오버라이드 아래에 위치해야 유효)
+@import "bootstrap/scss/bootstrap";
+
+// 3. 그라데이션 배경은 CSS 변수로 body 에 적용
+html, body {
+  min-height: 100vh;
+}
+body {
+  background: var(--sq-bg-page);
+  background-attachment: fixed; // 스크롤 시 그라데이션 고정
+}

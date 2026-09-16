@@ -1,0 +1,60 @@
+/*
+  SecuQuest — 디자인 토큰 (design-tokens.css)
+  Layout inspired by publicly viewable UI of Modulabs AX Education,
+  reinterpreted for SecuQuest bootcamp capstone (educational use only).
+  © 2026 5팀_Security Learning Platform
+
+  출처: docs/color-extract.txt (Phase 0, 01-header-nav.png 픽셀 추출)
+  원칙: 추출값은 그대로 사용, 추정값은 신뢰도(%)를 주석으로 명시.
+  모든 변수는 --sq- 접두사 (Bootstrap --bs-* 와 충돌 금지).
+*/
+
+:root {
+  /* ─── 배경 ─── */
+  --sq-bg-page: linear-gradient(120deg,
+    #DAEBFE 0%,
+    #F9F4CB 60%,
+    #F7F9FB 100%);
+  --sq-bg-header: #F9FDFF;
+  --sq-bg-header-tab-active: #FAFCFF;
+  --sq-bg-card: #FDFDFC;
+
+  /* ─── 액센트 ─── */
+  --sq-color-accent: #3659BE;
+  --sq-color-accent-hover: #3150AB; /* 추정: primary 10% darken, 신뢰도 70% */
+  --sq-color-accent-pressed: #2B4798; /* 추정: primary 20% darken, 신뢰도 70% */
+
+  /* ─── 텍스트 ─── */
+  --sq-text-body: #1A1D2A;
+  --sq-text-sub: #535259;
+  --sq-text-link: #3659BE; /* 추정: accent와 동일값으로 시작, 신뢰도 60% */
+  --sq-text-header-tab-active: #6678C9;
+  --sq-text-header-tab-inactive: #525F6C;
+
+  /* ─── 뱃지 ─── */
+  --sq-badge-round-bg: #D5E5FC;
+  --sq-badge-round-text: #8494BD;
+  --sq-badge-submitted-bg: #C5EECD;
+  --sq-badge-submitted-text: #78AB8E;
+  --sq-badge-dday-bg: #FDEECF;
+  --sq-badge-dday-text: #BC9A63;
+  --sq-badge-absent-bg: #FFF7F5;
+  --sq-badge-absent-text: #A3787B;
+
+  /* ─── 테두리·그림자 ─── */
+  --sq-header-border: #C4D8F6;
+  --sq-card-border: #E5E7EB; /* 추정: 캡처의 카드 외곽 얇은 회색선, 신뢰도 55% (좌표 추출값 #FEFFFE는 배경 흰색에 근접해 경계선 판별 불가) */
+  --sq-card-radius: 14px; /* 추정: 신뢰도 70% */
+  --sq-card-shadow: 0 2px 8px rgba(26, 29, 42, 0.06); /* 추정: 신뢰도 60% */
+
+  /* ─── 폰트 ─── */
+  --sq-font-family: "Pretendard", -apple-system, BlinkMacSystemFont,
+                    "Segoe UI", "Noto Sans KR", sans-serif;
+  --sq-font-weight-heading: 700;
+  --sq-font-weight-body: 400;
+
+  /* ─── 여백 ─── */
+  --sq-page-padding-x: 32px; /* 추정: 캡처 관찰, 신뢰도 65% */
+  --sq-card-gap: 16px; /* 추정: 캡처 관찰, 신뢰도 65% */
+  --sq-card-padding: 20px; /* 추정: 캡처 관찰, 신뢰도 65% */
+}
