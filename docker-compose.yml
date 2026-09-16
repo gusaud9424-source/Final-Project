@@ -11,8 +11,12 @@ services:
     networks: [webnet]
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
     env_file: .env
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     networks: [webnet]
 
   backend:

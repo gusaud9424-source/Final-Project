@@ -1,76 +1,232 @@
-# CLAUDE.md
+# SecuQuest — Claude Code 프로젝트 지침
 
-이 파일은 Claude Code가 이 프로젝트에서 작업할 때 따라야 할 지침이다.
-**핵심 원칙: 토큰을 최소로 사용하면서 결과물 품질은 최대로 유지한다.** 모든 판단(파일을 얼마나 읽을지, 서브에이전트를 쓸지, 설명을 얼마나 길게 할지)은 이 원칙을 기준으로 한다.
+> 이 파일은 Claude Code가 세션 시작 시 자동으로 읽어서 모든 프롬프트에 적용한다.
+> 프로젝트 루트(`/mnt/c/study/project/Final-Prj/CLAUDE.md`)에 위치해야 한다.
 
-## 프로젝트 개요
-- **주제**: 웹보안 핵심 취약점 학습 플랫폼 (교육용 — 취약점을 의도적으로 재현하고 실습하는 사이트)
-- **프론트엔드**: Vue + Bootstrap
-- **백엔드**: Flask + MariaDB
-- **문서화 계획**: 실습 정리/중요 자료를 Markdown으로, 설계서(아키텍처 다이어그램) 별도 작성 예정
-- 폴더 구조가 아직 없음 — `frontend/`(Vue), `backend/`(Flask) 등이 생기면 아래 "폴더 구조" 섹션을 실제 구조로 갱신할 것
+---
 
-## ⚠️ 의도된 취약점 다루는 법 (이 프로젝트의 특수성)
+## 1. 프로젝트 개요
 
-이 프로젝트는 취약점을 "재현"하는 것이 목적이므로, 일반적인 보안 원칙을 그대로 적용하면 안 된다.
+- **프로젝트명:** SecuQuest (시큐퀘스트)
+- **성격:** 부트캠프 캡스톤 학습 프로젝트 (Topic 05)
+- **팀:** 5팀_Security Learning Platform (오현명)
+- **목적:** 웹 보안 6대 핵심 취약점 한국어 학습 플랫폼
+- **기간:** 2026-08-24 ~ 2026-09-30
+- **사용 범위:** 학습 · 부트캠프 발표 · 포트폴리오 (상업적 사용 없음)
+- **저장소:** GitHub `Final-Project` (`gusaud9424-source`)
+- **로컬 경로:** `/mnt/c/study/project/Final-Prj` (WSL2)
+- **작업 위치:** 모노레포. 프론트엔드는 `Final-Prj/frontend/`, 백엔드는 `Final-Prj/backend/`
 
-- SQL Injection, XSS, 인증 우회 등 **학습 목적으로 의도된 취약 코드**는 버그가 아니다. 리뷰나 작업 중 발견해도 **먼저 물어보지 않고 임의로 "고치지" 말 것**
-- 의도된 취약 코드는 사용자가 알아볼 수 있게 표시해서 만들 것 (예: `# VULNERABLE(SQLi): 실습 3 — 문자열 결합 쿼리, 패치하지 말 것` 같은 한 줄 주석, 또는 `docs/`에 목록화). 이 경우는 "코드에 주석 달지 않기" 원칙의 예외로, 교육적 WHY가 있으므로 허용
-- `/security-review` 등으로 리뷰할 때는 "의도된 데모"와 "진짜 실수로 생긴 취약점(예: 실습 코드가 아닌 로그인/세션 관리 자체의 결함)"을 구분해서 보고할 것
-- 실제 운영 위험은 별개로 항상 방지: 실 자격증명, 실제 외부 API 키, 실 이메일/개인정보를 하드코딩하지 않기. DB 접속정보는 `.env`로만 관리(이미 `.gitignore`에 포함됨), 커밋 전 반드시 확인
+### 6대 취약점 (범위 고정)
+1. Command Injection
+2. XSS (DOM / Reflected / Stored)
+3. SQL Injection
+4. SQL Injection (Blind)
+5. File Upload
+6. CSRF
 
-## 토큰 절약 지침 (중요)
+---
 
-### 파일 탐색
-- 파일 전체를 읽지 말고 필요한 부분만 `offset`/`limit`, `grep -n`, `sed -n`으로 확인
-- Vue 컴포넌트(`.vue`)는 `<template>`/`<script>`/`<style>` 중 필요한 블록만 확인 (grep으로 위치 찾은 뒤 그 부분만 Read)
-- Flask 라우트 탐색은 `grep -rn "@app.route\|@.*\.route"` 처럼 필요한 매칭만 뽑아서 확인, 전체 파일 순회 금지
-- 여러 파일에 걸친 탐색(예: "SQL 쿼리를 문자열 결합으로 만드는 곳 전부 찾기", "이 함수 어디서 쓰이는지")은 직접 하나하나 읽지 말고 Explore 서브에이전트에 위임 — 요약만 받아서 컨텍스트 절약
-- 이미 읽은 파일은 재확인 목적으로 다시 읽지 말 것 (Edit 성공 시 결과는 신뢰)
+## 2. 기술 스택 (고정)
 
-### 응답 스타일
-- 간결하게 답변, 불필요한 서론/장황한 요약 반복 금지
-- 코드 주석은 기본적으로 달지 않음. 예외: 의도된 취약점 표시(위 섹션 참고), 그 외 WHY가 자명하지 않은 경우만
-- 작업 완료 보고는 변경 사항 1~2문장으로
-- 요청하지 않은 문서(`*.md`, 설계서 등)를 임의로 만들지 말 것 — 단, 이 프로젝트는 문서화 자체가 산출물이므로 사용자가 "정리해줘/문서화해줘"라고 하면 적극적으로 작성
+### 프론트엔드
+- Vue 3 (Composition API + `<script setup>`)
+- TypeScript **미사용** — 순수 JavaScript
+- Bootstrap 5 (커스텀 SCSS 오버라이드)
+- Vue Router 4
+- Pinia (상태 관리)
+- Axios (`baseURL: /api/v1`)
+- Bootstrap Icons
+- Pretendard Variable 폰트 (CDN 로드)
 
-### 작업 범위
-- 요청 범위 밖 리팩토링/추상화/에러 핸들링 임의 추가 금지 (버그 수정은 버그 수정만)
-- 사소한 판단은 알아서 하되, 결과가 크게 갈리는 애매함만 질문 (예: "이 라우트는 실습용 취약점인가, 실제 결함인가" 같은 것)
+### 백엔드 (참고용)
+- Python 3.x + Flask 3.x + Gunicorn (WSGI)
+- MariaDB (Docker Volume 영속화)
+- Redis (세션 · 캐시 · rate limit)
+- Nginx (Reverse Proxy · HTTPS · 정적 파일)
+- Docker Compose 기반 (Kubernetes 미사용)
 
-### 도구 사용
-- 서로 의존성 없는 작업은 한 메시지에서 병렬 tool call
-- 파일 수정은 Write(전체 재작성)보다 Edit(diff) 우선
-- 반복 조회성 작업(빌드, 테스트, git status 등)은 필요할 때만, 확인차 재실행 금지
+### 인증
+- 세션 기반 (Redis 세션 스토어)
+- bcrypt (salt round 12) 비밀번호 해시
+- HttpOnly · Secure · SameSite 쿠키
 
-## 기술 스택별 실전 지침
+---
 
-### 백엔드 (Flask + MariaDB)
-- 가상환경(`venv`/`.venv`) 사용, 의존성은 `requirements.txt`로 관리
-- DB 접속정보/시크릿은 `.env`에만 (커밋 금지, 이미 gitignore 처리됨)
-- 라우트/모델 코드는 실제 구조가 잡히면 이 섹션에 실행 명령(`flask run` 등), 폴더 배치 규칙 추가
-- ORM(SQLAlchemy 등) 사용 여부, 마이그레이션 도구(Alembic/Flask-Migrate) 사용 여부는 실제 도입 시 이 파일에 기록
+## 3. 사고 방식 및 작업 흐름
 
-### 프론트엔드 (Vue + Bootstrap)
-- 커스텀 CSS보다 Bootstrap 유틸리티/컴포넌트 클래스 우선 사용, 필요할 때만 최소 커스텀 CSS 추가
-- 패키지 매니저/빌드 명령(`npm run dev`, `npm run build` 등)은 `package.json` 확정되는 대로 이 섹션에 기록
-- 상태 관리(Pinia/Vuex 등) 도입 시 규칙 추가
+- 작업 시작 전 반드시 **계획을 먼저** 세워라.
+- 계획 단계는 **한 줄에 다섯 단어 이내**로 요약해라.
+- 실제 구현은 계획을 따라 정상적인 코드로 진행해라 (구현 단계까지 압축하지 말 것).
+- 파일을 여러 개 만들거나 수정할 때는 **한 번에 하나씩**, 완료 후 다음으로 넘어가라.
+- 불확실할 때는 진행 전에 질문하라. 추측으로 임의 값을 만들지 마라.
 
-## 문서화 규칙
-- 실습 정리/중요 자료: `docs/notes/`(가칭)에 Markdown으로 정리 — 사용자가 요청할 때 작성
-- 설계서/아키텍처 다이어그램: `docs/architecture/`(가칭)에 배치, 다이어그램은 Mermaid로 작성해 `.md`에 임베드 (별도 이미지 툴 불필요, 토큰도 절약)
-- 실제 폴더명이 정해지면 이 섹션을 갱신할 것
+---
 
-## 기본 세팅 권장
+## 4. 디자인 규칙 (매우 중요)
 
-### 권한 설정 (`.claude/settings.json`)
-- 반복 승인하는 안전한 read-only 명령(`git status`, `git diff`, `git log`, `ls`, `cat`, `npm run build`, `pytest` 등)은 allowlist에 등록 → `/fewer-permission-prompts`로 자동 스캔 가능
-- 파괴적 명령(`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE` 등 DB 파괴 쿼리)은 절대 자동 승인 목록에 넣지 말 것
+### 참고 자료
+- 참고 사이트: 모두의연구소 AX 교육 프로그램 (공개된 UI)
+- 참고 캡처 위치: `docs/references/*.png`
 
-### 커밋/PR
-- 명시적으로 요청받았을 때만 커밋 생성
-- 커밋 전 `git status`/`git diff`로 스테이징 내용 확인, `.env`나 실 자격증명 포함 여부 반드시 점검
+### 절대 규칙
+- **오직 참고 캡처에서 관찰된 색·간격·radius·그림자만 사용한다.**
+- Linear · Vercel · Stripe · Notion · Apple 등 **외부 디자인 시스템의 톤을 학습 편향으로 끌어오지 마라.**
+- 모든 색은 `frontend/src/assets/design-tokens.css` 의 `var(--sq-*)` 로만 사용한다.
+- **하드코딩된 hex 값 절대 금지** (예: `color: #3b5bff` ❌ → `color: var(--sq-color-accent)` ✅).
+- Bootstrap 기본 색상(`--bs-primary` 등)이 그대로 노출되면 안 된다. `frontend/src/assets/bootstrap-overrides.scss` 를 통해 `--sq-*` 토큰으로 오버라이드 후 사용.
 
-### 모델/모드
-- 탐색·조사 위주 작업은 Explore/fork 서브에이전트로 분리해 메인 컨텍스트 절약
-- 대규모 멀티에이전트 오케스트레이션(Workflow)은 사용자가 명시적으로 요청("ultracode" 등)했을 때만 사용
+### 확정된 디자인 값 (Phase 0~2 결과)
+- **primary:** `#3659BE` (참고 캡처 좌표 170,58 픽셀 추출값)
+- **페이지 그라데이션:** `linear-gradient(120deg, #DAEBFE 0%, #F9F4CB 60%, #EDF5FF 100%)`
+- **card-radius:** 14px
+- **font:** Pretendard (CDN)
+- **SCSS 오버라이드 원칙:**
+  - `$body-bg: transparent` 로 오버라이드 (Bootstrap 기본 흰 배경이 그라데이션 가림 방지)
+  - HEX는 `design-tokens.css` 와 `bootstrap-overrides.scss` 양쪽에 동일하게 하드코딩
+  - SCSS 변수에 `var(--sq-*)` 넣지 말 것 (Bootstrap 색상 함수 깨짐)
+
+### 브랜딩
+- 프로젝트 표기: **SecuQuest** (첫 S와 Q만 대문자, 붙여쓰기)
+- 헤더 상단 라벨: `SECU EDUCATION`
+- 헤더 메인 텍스트: `SecuQuest 학습 플랫폼`
+- 로고: `frontend/src/assets/brand/secuquest-mark.svg` (HTML5 방패 형태 + "S")
+- CSS 변수 접두사: `--sq-`
+
+---
+
+## 5. 저작권 · 출처 표기 (필수)
+
+### 원칙
+- 레이아웃 구조는 모두의연구소 AX 교육 프로그램의 공개된 UI에서 영감을 받아 재구성했으며, **부트캠프 학습 목적으로만** 사용한다.
+- 로고 · 프로젝트명 · 문구 · 아이콘 · 데이터는 모두 SecuQuest 자체 자산이다.
+- HTML5 방패 심볼 형태는 W3C 공개 마크에서 영감을 받아 글자를 "S" 로 재해석한 **SecuQuest 오리지널 마크**다.
+
+### 코드 주석 (모든 페이지 컴포넌트 상단에 삽입)
+
+```vue
+<!--
+  SecuQuest — <컴포넌트 목적 한 줄>
+  Layout inspired by publicly viewable UI of Modulabs AX Education,
+  reinterpreted for SecuQuest bootcamp capstone (educational use only).
+  © 2026 5팀_Security Learning Platform
+-->
+```
+
+### 화면 푸터 (홈 · 로그인 · 관리자 페이지 하단에 노출)
+
+> SecuQuest는 5팀_Security Learning Platform의 부트캠프 캡스톤 학습 프로젝트입니다.
+> © 2026 5팀_Security Learning Platform. All rights reserved.
+
+### 리드미
+- 프로젝트 `README.md` 에 위 내용을 요약한 "Attribution" 섹션을 반드시 포함한다.
+
+---
+
+## 6. 파일 구조 규칙
+
+```
+Final-Prj/
+├── CLAUDE.md                        ← 이 파일
+├── DESIGN.md                        ← (선택) 캡처에서 뽑은 디자인 토큰 스펙
+├── docs/
+│   └── references/                  ← 참고 캡처 PNG
+├── frontend/                        ← Vue 프로젝트 루트
+│   ├── src/
+│   │   ├── assets/
+│   │   │   ├── brand/
+│   │   │   │   └── secuquest-mark.svg
+│   │   │   ├── design-tokens.css
+│   │   │   └── bootstrap-overrides.scss
+│   │   ├── components/
+│   │   │   ├── layout/
+│   │   │   │   ├── AppHeader.vue
+│   │   │   │   └── AppFooter.vue
+│   │   │   ├── practice/
+│   │   │   │   ├── GradingModal.vue
+│   │   │   │   ├── ResultModal.vue
+│   │   │   │   └── CodeBlock.vue
+│   │   │   └── common/
+│   │   │       └── VulnerabilityPage.vue
+│   │   ├── views/
+│   │   │   ├── DashboardView.vue
+│   │   │   ├── ChapterSelectView.vue
+│   │   │   ├── ChapterDetailView.vue
+│   │   │   ├── AdminView.vue
+│   │   │   ├── ResourcesView.vue
+│   │   │   ├── NotFoundView.vue
+│   │   │   └── LoginView.vue
+│   │   ├── router/
+│   │   │   └── index.js
+│   │   ├── stores/
+│   │   │   └── auth.js
+│   │   ├── api/
+│   │   │   └── client.js            ← Axios (baseURL: /api/v1)
+│   │   ├── App.vue
+│   │   └── main.js
+│   ├── public/
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.js
+├── backend/                         ← Flask API
+└── scripts/
+    └── extract_colors.py            ← Phase 0 색상 추출 스크립트
+```
+
+### 네이밍 규칙
+- Vue 컴포넌트: **PascalCase** (`AppHeader.vue`, `VulnerabilityPage.vue`)
+- 뷰(라우트 대응): `frontend/src/views/*View.vue` 접미사
+- 재사용 컴포넌트: `frontend/src/components/**` 하위
+- 스토어: `frontend/src/stores/*.js` (Pinia)
+
+### 컴포넌트 재사용 규칙
+- 6개 취약점 실습 페이지는 **`VulnerabilityPage.vue` 공통 뼈대**를 감싸고 `#practice` / `#result` / `#explanation` 슬롯만 채우는 패턴을 지킨다.
+- 취약점별로 별도 페이지 컴포넌트를 새로 만들지 말 것.
+
+---
+
+## 7. 보안 관련 지침 (실습 페이지 특성상)
+
+- 취약점 실습 페이지는 **의도적으로 취약**하다. Flask-WTF CSRF 토큰 등 표준 보안은 실습 페이지에서만 예외.
+- 관리자 · 인증 · 보상 관련 페이지는 **표준 보안 규칙 엄수** (CSRF · Rate Limit · 감사 로그).
+- 계좌번호는 AES-256-GCM (Fernet) 암호화 후 저장.
+- 실습 격리: Practice Sandbox 컨테이너 (`network=none`, read-only rootfs, non-root user).
+
+---
+
+## 8. 커밋 · Git 규칙
+
+- 브랜치 전략: 개인 브랜치 → main 병합
+- **커밋 메시지: Conventional Commits 형식** — `feat(scope): 내용`
+  - scope 예시: `style`, `router`, `view`, `layout`, `vuln`, `api`, `auth`, `design`
+  - 예시: `feat(router): add vue-router with route stubs`
+  - 예시: `feat(style): design tokens, bootstrap overrides, pretendard font`
+- 로컬 alias 사용 중: `gs`, `ga`, `gc`, `gp`, `gl`.
+- 표준 흐름: pull → work → commit → push.
+- 두 환경(교육센터 · 자택) 간 이동 시 반드시 push/pull.
+
+---
+
+## 9. 진행 상태 요약 (참고)
+
+- Week 1 산출물 완료: 프로젝트 헌장 · 요구사항 정의서 · WBS · 벤치마킹 분석
+- Week 2 산출물: 설계서 (아키텍처 · 화면 설계 · API 설계)
+- Week 3~5: 프론트엔드 · 백엔드 구현 · 테스트 · 발표 준비
+- **현재 단계: 프론트엔드 UI 클론 작업 (참고 캡처 기반, 픽셀 파리티)**
+  - Phase 0 완료: 색상 추출
+  - Phase 1 완료: `design-tokens.css`
+  - Phase 2 완료: `bootstrap-overrides.scss` + Pretendard
+  - Phase 2.5 완료: 라우터 스텁 + `main.js`/`App.vue` 수정
+  - **다음: Phase 3 (AppHeader 픽셀 복제)**
+
+---
+
+## 10. 응답 스타일
+
+- **결론 먼저.** 근거는 요청 시에만 제공.
+- **답변은 필요 최소 길이.** 대안 여러 개 제시 금지 (베스트 하나만).
+- **불릿 · 헤더 남발 금지.** 짧은 답이면 그냥 문장 한두 줄.
+- 코드 주석은 한글, 코드 자체는 영문.
+- 설명은 한국어.
+- 모호할 때만 확인 질문 → 구현.
+- 파일을 만들 때는 `create_file` / `str_replace` 도구를 실제로 호출해서 파일을 저장한다. 코드 블록만 채팅에 출력하고 끝내지 말 것.
