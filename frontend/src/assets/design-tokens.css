@@ -26,6 +26,7 @@
 
   /* ─── 텍스트 ─── */
   --sq-text-body: #1A1D2A;
+  --sq-text-main: #1A1D2A; /* text-body와 동일값: 헤더 등 메인 타이틀용 별칭 */
   --sq-text-sub: #535259;
   --sq-text-link: #3659BE; /* 추정: accent와 동일값으로 시작, 신뢰도 60% */
   --sq-text-header-tab-active: #6678C9;
