@@ -9,4 +9,3 @@ venv/
 *.log
 node_modules/
 frontend/dist/
-backend/migrations/

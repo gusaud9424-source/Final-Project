@@ -14,6 +14,8 @@ services:
     build:
       context: ./frontend
     env_file: .env
+    environment:
+      VITE_API_TARGET: http://backend:5000
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -21,10 +23,16 @@ services:
 
   backend:
     build: ./backend
-    env_file: .env
+    env_file:
+      - .env
+      - backend/.env
     environment:
       FLASK_APP: run.py
       FLASK_ENV: development
+    volumes:
+      - ./backend:/app
+    ports:
+      - "127.0.0.1:5000:5000"
     depends_on:
       db:
         condition: service_healthy
