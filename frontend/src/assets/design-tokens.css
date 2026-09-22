@@ -23,6 +23,7 @@
   --sq-color-accent: #3659BE;
   --sq-color-accent-hover: #3150AB; /* 추정: primary 10% darken, 신뢰도 70% */
   --sq-color-accent-pressed: #2B4798; /* 추정: primary 20% darken, 신뢰도 70% */
+  --sq-color-on-accent: #FFFFFF; /* accent 배경 위 텍스트/아이콘용 */
 
   /* ─── 텍스트 ─── */
   --sq-text-body: #1A1D2A;

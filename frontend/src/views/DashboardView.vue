@@ -8,203 +8,152 @@
   <div class="sq-dashboard">
     <div class="sq-dashboard__head">
       <div>
-        <h1 class="sq-dashboard__title">내 강의실</h1>
+        <h1 class="sq-dashboard__title">
+          {{ authStore.isAdmin ? "전체 학생 현황" : "내 강의실" }}
+        </h1>
         <p class="sq-dashboard__subtitle">
-          챕터별 진도와 학습 현황을 한눈에 확인하세요.
+          {{
+            authStore.isAdmin
+              ? "전체 학생의 챕터별 진도를 확인하세요."
+              : "챕터별 진도와 학습 현황을 한눈에 확인하세요."
+          }}
         </p>
       </div>
-      <router-link to="/chapters" class="sq-dashboard__cta">
+      <router-link v-if="!authStore.isAdmin" to="/chapters" class="sq-dashboard__cta">
         챕터 선택하러 가기
       </router-link>
     </div>
 
-    <section class="sq-summary-card">
-      <div class="sq-summary-card__head">
-        <span class="sq-summary-card__title">학습 요약</span>
-        <span class="sq-badge sq-badge--round">
-          {{ summary.completedRounds }}/{{ summary.totalRounds }} 회차 완료 ({{ summary.percent }}%)
-        </span>
-      </div>
+    <StudentsOverview v-if="authStore.isAdmin" />
 
-      <div class="sq-summary-card__stats">
-        <div class="sq-summary-stat">
-          <span class="sq-summary-stat__label">수강 챕터</span>
-          <span class="sq-summary-stat__value">{{ summary.courseCount }}개</span>
-        </div>
-        <div class="sq-summary-stat">
-          <span class="sq-summary-stat__label">완료 회차</span>
-          <span class="sq-summary-stat__value">{{ summary.completedRounds }}회</span>
-        </div>
-        <div class="sq-summary-stat">
-          <span class="sq-summary-stat__label">전체 진도율</span>
-          <span class="sq-summary-stat__value">{{ summary.percent }}%</span>
-        </div>
-      </div>
+    <template v-else>
+      <p v-if="loading" class="sq-dashboard__status">불러오는 중...</p>
+      <p v-else-if="errorMessage" class="sq-dashboard__error">{{ errorMessage }}</p>
 
-      <div
-        class="sq-progress-bar sq-progress-bar--lg"
-        role="progressbar"
-        :aria-valuenow="summary.percent"
-        aria-valuemin="0"
-        aria-valuemax="100"
-      >
-        <div class="sq-progress-bar__fill" :style="{ width: summary.percent + '%' }"></div>
-      </div>
-    </section>
-
-    <div class="row g-3 sq-course-grid">
-      <div class="col-6 col-lg-3" v-for="course in courses" :key="course.id">
-        <article class="sq-course-card">
-          <div class="sq-course-card__head">
-            <i class="bi sq-course-card__icon" :class="course.icon" aria-hidden="true"></i>
-            <span class="sq-badge" :class="`sq-badge--${course.badge.type}`">
-              {{ course.badge.label }}
+      <template v-else>
+        <section class="sq-summary-card">
+          <div class="sq-summary-card__head">
+            <span class="sq-summary-card__title">학습 요약</span>
+            <span class="sq-badge sq-badge--round">
+              {{ summary.completedRounds }}/{{ summary.totalRounds }} 회차 완료 ({{ summary.percent }}%)
             </span>
           </div>
 
-          <h3 class="sq-course-card__title">{{ course.title }}</h3>
-          <p class="sq-course-card__desc">{{ course.description }}</p>
-
-          <div class="sq-course-card__meta">
-            <span class="sq-pill">
-              <i class="bi bi-person-circle" aria-hidden="true"></i>
-              {{ course.instructor }}
-            </span>
-            <span class="sq-pill">
-              <i class="bi bi-calendar3" aria-hidden="true"></i>
-              {{ course.schedule }}
-            </span>
+          <div class="sq-summary-card__stats">
+            <div class="sq-summary-stat">
+              <span class="sq-summary-stat__label">수강 챕터</span>
+              <span class="sq-summary-stat__value">{{ summary.courseCount }}개</span>
+            </div>
+            <div class="sq-summary-stat">
+              <span class="sq-summary-stat__label">완료 회차</span>
+              <span class="sq-summary-stat__value">{{ summary.completedRounds }}회</span>
+            </div>
+            <div class="sq-summary-stat">
+              <span class="sq-summary-stat__label">전체 진도율</span>
+              <span class="sq-summary-stat__value">{{ summary.percent }}%</span>
+            </div>
           </div>
 
           <div
-            class="sq-progress-bar"
+            class="sq-progress-bar sq-progress-bar--lg"
             role="progressbar"
-            :aria-valuenow="course.percent"
+            :aria-valuenow="summary.percent"
             aria-valuemin="0"
             aria-valuemax="100"
           >
-            <div class="sq-progress-bar__fill" :style="{ width: course.percent + '%' }"></div>
+            <div class="sq-progress-bar__fill" :style="{ width: summary.percent + '%' }"></div>
           </div>
-          <p class="sq-course-card__percent">{{ course.percent }}% 진행 중</p>
+        </section>
 
-          <template v-if="course.attendance.sessions.length">
-            <hr class="sq-course-card__divider" />
-            <p class="sq-course-card__attendance-label">
-              <i class="bi bi-calendar-check" aria-hidden="true"></i>
-              출석 현황 ({{ course.attendance.done }}/{{ course.attendance.total }})
-            </p>
-            <div class="sq-course-card__sessions">
-              <span
-                v-for="session in course.attendance.sessions"
-                :key="session.n"
-                class="sq-badge"
-                :class="session.status === 'submitted' ? 'sq-badge--submitted' : 'sq-badge--absent'"
+        <div class="row g-3 sq-course-grid">
+          <div class="col-6 col-lg-3" v-for="course in courses" :key="course.id">
+            <article class="sq-course-card">
+              <div class="sq-course-card__head">
+                <i class="bi sq-course-card__icon" :class="course.icon" aria-hidden="true"></i>
+                <span class="sq-badge" :class="`sq-badge--${course.badge.type}`">
+                  {{ course.badge.label }}
+                </span>
+              </div>
+
+              <h3 class="sq-course-card__title">{{ course.title }}</h3>
+              <p class="sq-course-card__desc">{{ course.description }}</p>
+
+              <div class="sq-course-card__meta">
+                <span class="sq-pill">
+                  <i class="bi bi-person-circle" aria-hidden="true"></i>
+                  {{ course.instructor }}
+                </span>
+                <span class="sq-pill">
+                  <i class="bi bi-calendar3" aria-hidden="true"></i>
+                  {{ course.schedule }}
+                </span>
+              </div>
+
+              <div
+                class="sq-progress-bar"
+                role="progressbar"
+                :aria-valuenow="course.percent"
+                aria-valuemin="0"
+                aria-valuemax="100"
               >
-                {{ session.n }}회차 {{ session.status === "submitted" ? "출석" : "결석" }}
-              </span>
-            </div>
-          </template>
-        </article>
-      </div>
-    </div>
+                <div class="sq-progress-bar__fill" :style="{ width: course.percent + '%' }"></div>
+              </div>
+              <p class="sq-course-card__percent">{{ course.percent }}% 진행 중</p>
+
+              <template v-if="course.attendance.sessions.length">
+                <hr class="sq-course-card__divider" />
+                <p class="sq-course-card__attendance-label">
+                  <i class="bi bi-calendar-check" aria-hidden="true"></i>
+                  출석 현황 ({{ course.attendance.done }}/{{ course.attendance.total }})
+                </p>
+                <div class="sq-course-card__sessions">
+                  <span
+                    v-for="session in course.attendance.sessions"
+                    :key="session.n"
+                    class="sq-badge"
+                    :class="session.status === 'submitted' ? 'sq-badge--submitted' : 'sq-badge--absent'"
+                  >
+                    {{ session.n }}회차 {{ session.status === "submitted" ? "출석" : "결석" }}
+                  </span>
+                </div>
+              </template>
+            </article>
+          </div>
+        </div>
+      </template>
+    </template>
   </div>
 </template>
 
 <script setup>
-const summary = {
-  courseCount: 6,
-  completedRounds: 7,
-  totalRounds: 24,
-  percent: 29,
-};
+import { ref, onMounted } from "vue";
+import client from "@/api/client";
+import { getErrorMessage } from "@/api/errors";
+import { useAuthStore } from "@/stores/auth";
+import StudentsOverview from "@/components/dashboard/StudentsOverview.vue";
 
-const courses = [
-  {
-    id: 1,
-    icon: "bi-terminal",
-    badge: { type: "round", label: "2/4 완료" },
-    title: "Command Injection",
-    description: "입력값 검증 우회로 시스템 명령을 실행하는 취약점 실습",
-    instructor: "김보안",
-    schedule: "월·10:00",
-    percent: 50,
-    attendance: {
-      done: 2,
-      total: 2,
-      sessions: [
-        { n: 1, status: "submitted" },
-        { n: 2, status: "submitted" },
-      ],
-    },
-  },
-  {
-    id: 2,
-    icon: "bi-code-slash",
-    badge: { type: "round", label: "0/4 완료" },
-    title: "XSS",
-    description: "DOM·반사·저장형 스크립트 삽입 공격 실습",
-    instructor: "이지은",
-    schedule: "목·15:00",
-    percent: 0,
-    attendance: {
-      done: 0,
-      total: 1,
-      sessions: [{ n: 1, status: "absent" }],
-    },
-  },
-  {
-    id: 3,
-    icon: "bi-database",
-    badge: { type: "round", label: "2/4 완료" },
-    title: "SQL Injection",
-    description: "Union 기반 쿼리 조작으로 데이터를 추출하는 실습",
-    instructor: "박준혁",
-    schedule: "화·15:00",
-    percent: 50,
-    attendance: {
-      done: 3,
-      total: 3,
-      sessions: [
-        { n: 1, status: "submitted" },
-        { n: 2, status: "submitted" },
-        { n: 3, status: "submitted" },
-      ],
-    },
-  },
-  {
-    id: 4,
-    icon: "bi-search",
-    badge: { type: "round", label: "0/4 완료" },
-    title: "SQL Injection (Blind)",
-    description: "응답 시간·참/거짓 반응으로 데이터를 추론하는 실습",
-    instructor: "최유나",
-    schedule: "금·13:00",
-    percent: 0,
-    attendance: { done: 0, total: 0, sessions: [] },
-  },
-  {
-    id: 5,
-    icon: "bi-cloud-upload",
-    badge: { type: "round", label: "0/4 완료" },
-    title: "File Upload",
-    description: "확장자·MIME 우회로 악성 파일을 업로드하는 실습",
-    instructor: "정하늘",
-    schedule: "수·13:00",
-    percent: 0,
-    attendance: { done: 0, total: 0, sessions: [] },
-  },
-  {
-    id: 6,
-    icon: "bi-shield-exclamation",
-    badge: { type: "dday", label: "대기 (예비 3번)" },
-    title: "CSRF",
-    description: "위조 요청으로 사용자 권한을 도용하는 공격 실습",
-    instructor: "한서준",
-    schedule: "금·10:00",
-    percent: 0,
-    attendance: { done: 0, total: 0, sessions: [] },
-  },
-];
+const authStore = useAuthStore();
+
+const loading = ref(true);
+const errorMessage = ref("");
+const summary = ref({ courseCount: 0, completedRounds: 0, totalRounds: 0, percent: 0 });
+const courses = ref([]);
+
+onMounted(async () => {
+  if (authStore.isAdmin) {
+    loading.value = false;
+    return;
+  }
+  try {
+    const { data } = await client.get("/dashboard");
+    summary.value = data.summary;
+    courses.value = data.courses;
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error, "대시보드 정보를 불러오지 못했습니다.");
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <style scoped>
@@ -239,11 +188,23 @@ const courses = [
   padding: 12px 20px;
   border-radius: var(--sq-card-radius);
   background: var(--sq-color-accent);
-  color: #fff;
+  color: var(--sq-color-on-accent);
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.sq-dashboard__status {
+  margin: 0;
+  font-size: 14px;
+  color: var(--sq-text-sub);
+}
+
+.sq-dashboard__error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--sq-badge-absent-text);
 }
 
 .sq-summary-card {

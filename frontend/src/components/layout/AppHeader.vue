@@ -6,23 +6,23 @@
 -->
 <template>
   <header class="sq-header">
-    <div class="sq-header__brand">
+    <router-link class="sq-header__brand" to="/dashboard">
+      <BrandMark class="sq-header__mark" />
       <span class="sq-header__title">SecuQuest</span>
-    </div>
+    </router-link>
 
     <nav class="sq-header__nav" aria-label="주요 메뉴">
       <router-link class="sq-tab" to="/chapters">챕터 선택</router-link>
       <router-link class="sq-tab" to="/dashboard">학습 대시보드</router-link>
-      <router-link v-if="isAdmin" class="sq-tab" to="/admin">관리자</router-link>
+      <router-link v-if="authStore.isAdmin" class="sq-tab" to="/admin">관리자</router-link>
       <router-link class="sq-tab" to="/resources">자료실</router-link>
     </nav>
 
     <div class="sq-header__user">
-      <span class="sq-header__avatar" aria-hidden="true">SQ</span>
-      <!-- TODO: src/assets/brand/secuquest-mark.svg 준비되면 <img> 로 교체 -->
+      <span class="sq-header__avatar" aria-hidden="true">{{ avatarInitial }}</span>
       <div class="sq-header__user-info">
-        <span class="sq-header__user-name">홍길동</span>
-        <span class="sq-header__user-email">hong@secuquest.dev</span>
+        <span class="sq-header__user-name">{{ authStore.user?.name }}</span>
+        <span class="sq-header__user-email">{{ authStore.user?.email }}</span>
       </div>
       <button
         type="button"
@@ -37,13 +37,19 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed } from "vue";
+import { useRouter } from "vue-router";
+import BrandMark from "@/components/brand/BrandMark.vue";
+import { useAuthStore } from "@/stores/auth";
 
-const isAdmin = ref(false);
+const authStore = useAuthStore();
+const router = useRouter();
 
-function handleLogout() {
-  console.log("logout");
-  // TODO: authStore.logout() 연결
+const avatarInitial = computed(() => authStore.user?.name?.slice(0, 1) || "SQ");
+
+async function handleLogout() {
+  await authStore.logout();
+  router.push("/login");
 }
 </script>
 
@@ -62,9 +68,14 @@ function handleLogout() {
 
 .sq-header__brand {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 10px;
   white-space: nowrap;
+  text-decoration: none;
+}
+
+.sq-header__mark {
+  flex-shrink: 0;
 }
 
 .sq-header__title {
@@ -94,7 +105,7 @@ function handleLogout() {
 
 .sq-tab.router-link-active {
   background: var(--sq-color-accent);
-  color: #fff;
+  color: var(--sq-color-on-accent);
 }
 
 .sq-header__user {
@@ -115,7 +126,7 @@ function handleLogout() {
   height: 40px;
   border-radius: 50%;
   background: var(--sq-color-accent);
-  color: #fff;
+  color: var(--sq-color-on-accent);
   font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
