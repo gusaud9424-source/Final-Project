@@ -12,9 +12,12 @@
 $primary: #3659BE;
 $body-color: #1A1D2A;
 $body-bg: transparent; // Bootstrap 기본 배경(#fff)이 그라데이션을 가리는 것 방지
-$border-radius: 14px;
-$border-radius-lg: 18px;
-$border-radius-sm: 10px;
+// 프로젝트 전역 라운드 미사용 방침 ($border-radius-pill 제외: 진행 바·배지용으로 유지)
+$border-radius: 0;
+$border-radius-lg: 0;
+$border-radius-sm: 0;
+$border-radius-xl: 0;
+$border-radius-xxl: 0;
 $font-family-sans-serif: "Pretendard", -apple-system, BlinkMacSystemFont,
                          "Segoe UI", "Noto Sans KR", sans-serif;
 

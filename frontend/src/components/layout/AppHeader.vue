@@ -12,8 +12,15 @@
     </router-link>
 
     <nav class="sq-header__nav" aria-label="주요 메뉴">
+      <router-link class="sq-tab" to="/enroll">수강신청</router-link>
       <router-link class="sq-tab" to="/chapters">챕터 선택</router-link>
-      <router-link class="sq-tab" to="/dashboard">학습 대시보드</router-link>
+      <router-link
+        class="sq-tab"
+        :class="{ 'router-link-active': isDashboardActive }"
+        to="/dashboard"
+      >
+        학습 대시보드
+      </router-link>
       <router-link v-if="authStore.isAdmin" class="sq-tab" to="/admin">관리자</router-link>
       <router-link class="sq-tab" to="/resources">자료실</router-link>
     </nav>
@@ -38,14 +45,16 @@
 
 <script setup>
 import { computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import BrandMark from "@/components/brand/BrandMark.vue";
 import { useAuthStore } from "@/stores/auth";
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 
 const avatarInitial = computed(() => authStore.user?.name?.slice(0, 1) || "SQ");
+const isDashboardActive = computed(() => route.path.startsWith("/dashboard"));
 
 async function handleLogout() {
   await authStore.logout();
@@ -124,7 +133,7 @@ async function handleLogout() {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--sq-radius-none);
   background: var(--sq-color-accent);
   color: var(--sq-color-on-accent);
   font-size: 13px;

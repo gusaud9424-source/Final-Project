@@ -23,6 +23,7 @@
   --sq-color-accent: #3659BE;
   --sq-color-accent-hover: #3150AB; /* 추정: primary 10% darken, 신뢰도 70% */
   --sq-color-accent-pressed: #2B4798; /* 추정: primary 20% darken, 신뢰도 70% */
+  --sq-color-accent-subtle: color-mix(in srgb, var(--sq-color-accent) 8%, transparent); /* accent 8% 틴트 */
   --sq-color-on-accent: #FFFFFF; /* accent 배경 위 텍스트/아이콘용 */
 
   /* ─── 텍스트 ─── */
@@ -46,8 +47,10 @@
   /* ─── 테두리·그림자 ─── */
   --sq-header-border: #C4D8F6;
   --sq-card-border: #E5E7EB; /* 추정: 캡처의 카드 외곽 얇은 회색선, 신뢰도 55% (좌표 추출값 #FEFFFE는 배경 흰색에 근접해 경계선 판별 불가) */
-  --sq-card-radius: 14px; /* 추정: 신뢰도 70% */
+  --sq-card-radius: 0; /* 프로젝트 전역 라운드 미사용 방침으로 0 고정 (원 추출값 14px) */
+  --sq-radius-none: 0; /* 라운드 제거가 필요한 요소용 (예: 로그인 폼) */
   --sq-card-shadow: 0 2px 8px rgba(26, 29, 42, 0.06); /* 추정: 신뢰도 60% */
+  --sq-card-shadow-hover: 0 8px 20px rgba(26, 29, 42, 0.14); /* 추정: hover 강조용, 신뢰도 55% */
 
   /* ─── 폰트 ─── */
   --sq-font-family: "Pretendard", -apple-system, BlinkMacSystemFont,

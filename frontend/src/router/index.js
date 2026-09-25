@@ -19,8 +19,10 @@ const routes = [
     meta: { public: true, showHeader: false },
   },
   { path: "/dashboard", component: () => import("@/views/DashboardView.vue") },
+  { path: "/dashboard/courses/:slug", component: () => import("@/views/CourseDetailView.vue") },
   { path: "/chapters", component: () => import("@/views/ChapterSelectView.vue") },
   { path: "/chapters/:id", component: () => import("@/views/ChapterDetailView.vue") },
+  { path: "/enroll", component: () => import("@/views/EnrollView.vue") },
   {
     path: "/admin",
     component: () => import("@/views/AdminView.vue"),

@@ -65,29 +65,28 @@
           </div>
         </section>
 
-        <div class="row g-3 sq-course-grid">
+        <div v-if="!courses.length" class="sq-empty-state">
+          <p class="sq-empty-state__text">아직 수강 중인 과목이 없습니다.</p>
+          <router-link to="/enroll" class="sq-dashboard__cta">수강신청하러 가기</router-link>
+        </div>
+
+        <div v-else class="row g-3 sq-course-grid">
           <div class="col-6 col-lg-3" v-for="course in courses" :key="course.id">
-            <article class="sq-course-card">
+            <article
+              class="sq-course-card"
+              role="link"
+              tabindex="0"
+              :aria-label="`${course.title} 과목 상세로 이동`"
+              @click="goToCourse(course)"
+              @keydown.enter="goToCourse(course)"
+              @keydown.space.prevent="goToCourse(course)"
+            >
               <div class="sq-course-card__head">
                 <i class="bi sq-course-card__icon" :class="course.icon" aria-hidden="true"></i>
-                <span class="sq-badge" :class="`sq-badge--${course.badge.type}`">
-                  {{ course.badge.label }}
-                </span>
               </div>
 
               <h3 class="sq-course-card__title">{{ course.title }}</h3>
               <p class="sq-course-card__desc">{{ course.description }}</p>
-
-              <div class="sq-course-card__meta">
-                <span class="sq-pill">
-                  <i class="bi bi-person-circle" aria-hidden="true"></i>
-                  {{ course.instructor }}
-                </span>
-                <span class="sq-pill">
-                  <i class="bi bi-calendar3" aria-hidden="true"></i>
-                  {{ course.schedule }}
-                </span>
-              </div>
 
               <div
                 class="sq-progress-bar"
@@ -98,25 +97,9 @@
               >
                 <div class="sq-progress-bar__fill" :style="{ width: course.percent + '%' }"></div>
               </div>
-              <p class="sq-course-card__percent">{{ course.percent }}% 진행 중</p>
-
-              <template v-if="course.attendance.sessions.length">
-                <hr class="sq-course-card__divider" />
-                <p class="sq-course-card__attendance-label">
-                  <i class="bi bi-calendar-check" aria-hidden="true"></i>
-                  출석 현황 ({{ course.attendance.done }}/{{ course.attendance.total }})
-                </p>
-                <div class="sq-course-card__sessions">
-                  <span
-                    v-for="session in course.attendance.sessions"
-                    :key="session.n"
-                    class="sq-badge"
-                    :class="session.status === 'submitted' ? 'sq-badge--submitted' : 'sq-badge--absent'"
-                  >
-                    {{ session.n }}회차 {{ session.status === "submitted" ? "출석" : "결석" }}
-                  </span>
-                </div>
-              </template>
+              <p class="sq-course-card__progress-label">
+                {{ course.completed }}/{{ course.total }} 완료 · {{ course.percent }}%
+              </p>
             </article>
           </div>
         </div>
@@ -127,17 +110,23 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 import { useAuthStore } from "@/stores/auth";
 import StudentsOverview from "@/components/dashboard/StudentsOverview.vue";
 
 const authStore = useAuthStore();
+const router = useRouter();
 
 const loading = ref(true);
 const errorMessage = ref("");
 const summary = ref({ courseCount: 0, completedRounds: 0, totalRounds: 0, percent: 0 });
 const courses = ref([]);
+
+function goToCourse(course) {
+  router.push(`/dashboard/courses/${course.slug}`);
+}
 
 onMounted(async () => {
   if (authStore.isAdmin) {
@@ -186,7 +175,7 @@ onMounted(async () => {
 .sq-dashboard__cta {
   flex-shrink: 0;
   padding: 12px 20px;
-  border-radius: var(--sq-card-radius);
+  border-radius: var(--sq-radius-none);
   background: var(--sq-color-accent);
   color: var(--sq-color-on-accent);
   font-size: 15px;
@@ -207,10 +196,28 @@ onMounted(async () => {
   color: var(--sq-badge-absent-text);
 }
 
+.sq-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px var(--sq-card-padding);
+  border: 1px solid var(--sq-card-border);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+  text-align: center;
+}
+
+.sq-empty-state__text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--sq-text-sub);
+}
+
 .sq-summary-card {
   padding: var(--sq-card-padding);
   border: 1px solid var(--sq-card-border);
-  border-radius: var(--sq-card-radius);
+  border-radius: var(--sq-radius-none);
   background: var(--sq-bg-card);
   box-shadow: var(--sq-card-shadow);
 }
@@ -265,7 +272,7 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: var(--sq-radius-none);
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -274,21 +281,6 @@ onMounted(async () => {
 .sq-badge--round {
   background: var(--sq-badge-round-bg);
   color: var(--sq-badge-round-text);
-}
-
-.sq-badge--submitted {
-  background: var(--sq-badge-submitted-bg);
-  color: var(--sq-badge-submitted-text);
-}
-
-.sq-badge--dday {
-  background: var(--sq-badge-dday-bg);
-  color: var(--sq-badge-dday-text);
-}
-
-.sq-badge--absent {
-  background: var(--sq-badge-absent-bg);
-  color: var(--sq-badge-absent-text);
 }
 
 .sq-progress-bar {
@@ -308,6 +300,10 @@ onMounted(async () => {
   background: var(--sq-color-accent);
 }
 
+.sq-course-grid {
+  overflow: visible;
+}
+
 .sq-course-card {
   height: 100%;
   display: flex;
@@ -315,9 +311,24 @@ onMounted(async () => {
   gap: 10px;
   padding: var(--sq-card-padding);
   border: 1px solid var(--sq-card-border);
-  border-radius: var(--sq-card-radius);
+  border-radius: var(--sq-radius-none);
   background: var(--sq-bg-card);
   box-shadow: var(--sq-card-shadow);
+  cursor: pointer;
+  transition: transform 200ms ease, border-color 200ms ease, background-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.sq-course-card:hover,
+.sq-course-card:focus-visible {
+  transform: scale(1.03);
+  border-color: var(--sq-color-accent);
+  background-image: linear-gradient(var(--sq-color-accent-subtle), var(--sq-color-accent-subtle));
+  box-shadow: var(--sq-card-shadow-hover);
+}
+
+.sq-course-card:focus-visible {
+  outline: none;
 }
 
 .sq-course-card__head {
@@ -345,55 +356,21 @@ onMounted(async () => {
   margin: 0;
 }
 
-.sq-course-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.sq-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--sq-card-border);
-  color: var(--sq-text-sub);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.sq-course-card__percent {
+.sq-course-card__progress-label {
   font-size: 13px;
   font-weight: 700;
   color: var(--sq-color-accent);
   margin: 0;
 }
 
-.sq-course-card__divider {
-  margin: 0;
-  border: none;
-  border-top: 1px solid var(--sq-card-border);
-}
+@media (prefers-reduced-motion: reduce) {
+  .sq-course-card {
+    transition: border-color 200ms ease, background-color 200ms ease, box-shadow 200ms ease;
+  }
 
-.sq-course-card__attendance-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--sq-text-sub);
-  margin: 0;
-}
-
-.sq-course-card__sessions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.sq-course-card__sessions .sq-badge {
-  padding: 4px 10px;
-  font-size: 12px;
+  .sq-course-card:hover,
+  .sq-course-card:focus-visible {
+    transform: none;
+  }
 }
 </style>

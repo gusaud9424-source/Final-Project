@@ -33,8 +33,9 @@ defineProps({
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  min-height: 100vh;
   gap: 24px;
-  padding-top: 48px;
 }
 
 .sq-auth-card {
@@ -42,7 +43,7 @@ defineProps({
   max-width: 400px;
   padding: var(--sq-card-padding);
   border: 1px solid var(--sq-card-border);
-  border-radius: var(--sq-card-radius);
+  border-radius: var(--sq-radius-none);
   background: var(--sq-bg-card);
   box-shadow: var(--sq-card-shadow);
 }
@@ -60,7 +61,7 @@ defineProps({
   gap: 4px;
   padding: 6px;
   background: var(--sq-badge-round-bg);
-  border-radius: var(--sq-card-radius);
+  border-radius: var(--sq-radius-none);
   margin-bottom: 20px;
 }
 
@@ -73,7 +74,7 @@ defineProps({
   font-weight: 600;
   color: var(--sq-text-sub);
   cursor: pointer;
-  border-radius: calc(var(--sq-card-radius) - 6px);
+  border-radius: var(--sq-radius-none);
   font-family: var(--sq-font-family);
 }
 
@@ -104,7 +105,7 @@ defineProps({
 .sq-auth-input {
   padding: 10px 12px;
   border: 1px solid var(--sq-card-border);
-  border-radius: calc(var(--sq-card-radius) - 6px);
+  border-radius: var(--sq-radius-none);
   font-size: 14px;
   font-family: var(--sq-font-family);
   color: var(--sq-text-main);
@@ -126,7 +127,7 @@ defineProps({
   margin-top: 16px;
   padding: 12px 20px;
   border: none;
-  border-radius: var(--sq-card-radius);
+  border-radius: var(--sq-radius-none);
   background: var(--sq-color-accent);
   color: var(--sq-color-on-accent);
   font-size: 15px;

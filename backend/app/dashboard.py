@@ -16,12 +16,11 @@ def _current_user():
 
 def _serialize_course(enrollment):
     course = enrollment.course
-    sessions = [
-        {"n": s.session_no, "status": s.status} for s in enrollment.attendance_sessions
-    ]
-    done = sum(1 for s in enrollment.attendance_sessions if s.status == "submitted")
+    completed = sum(1 for s in enrollment.attendance_sessions if s.status == "submitted")
+    total = len(enrollment.attendance_sessions)
     return {
         "id": course.id,
+        "slug": course.slug,
         "icon": course.icon,
         "title": course.title,
         "description": course.description,
@@ -29,19 +28,16 @@ def _serialize_course(enrollment):
         "schedule": course.schedule,
         "percent": enrollment.percent,
         "badge": {"type": enrollment.badge_type, "label": enrollment.badge_label},
-        "attendance": {
-            "done": done,
-            "total": len(sessions),
-            "sessions": sessions,
-        },
+        "completed": completed,
+        "total": total,
     }
 
 
 def _student_dashboard(user):
     enrollments = Enrollment.query.filter_by(user_id=user.id).all()
     courses = [_serialize_course(e) for e in enrollments]
-    total_rounds = sum(c["attendance"]["total"] for c in courses)
-    completed_rounds = sum(c["attendance"]["done"] for c in courses)
+    total_rounds = sum(c["total"] for c in courses)
+    completed_rounds = sum(c["completed"] for c in courses)
     percent = round(completed_rounds / total_rounds * 100) if total_rounds else 0
     return jsonify(
         role="student",

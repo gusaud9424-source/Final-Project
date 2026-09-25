@@ -67,7 +67,7 @@ onMounted(async () => {
 .sq-students {
   padding: var(--sq-card-padding);
   border: 1px solid var(--sq-card-border);
-  border-radius: var(--sq-card-radius);
+  border-radius: var(--sq-radius-none);
   background: var(--sq-bg-card);
   box-shadow: var(--sq-card-shadow);
 }
@@ -120,7 +120,7 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: var(--sq-radius-none);
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;

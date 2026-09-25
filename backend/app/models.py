@@ -20,9 +20,11 @@ class Course(db.Model):
     __tablename__ = "courses"
 
     id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(60), unique=True)
     title = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(255))
     icon = db.Column(db.String(40))
+    difficulty = db.Column(db.Enum("초급", "중급", "고급", name="course_difficulty"))
     instructor = db.Column(db.String(80))
     schedule = db.Column(db.String(40))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
