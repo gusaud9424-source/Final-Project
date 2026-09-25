@@ -30,10 +30,12 @@ def create_app():
     from .routes import bp as main_bp
     from .auth import bp as auth_bp
     from .dashboard import bp as dashboard_bp
+    from .enrollments import bp as enrollments_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(enrollments_bp)
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(_error):

@@ -33,6 +33,8 @@
 
     <!-- 강의 목록 -->
     <section class="sq-enroll__body">
+      <p v-if="errorMessage" class="sq-enroll__error" role="alert">{{ errorMessage }}</p>
+
       <div v-for="group in groupedByDifficulty" :key="group.difficulty" class="sq-diff-group">
         <h2 class="sq-diff-group__title">{{ group.difficulty }}</h2>
 
@@ -59,7 +61,12 @@
                   aria-hidden="true"
                 ></i>
               </button>
-              <button type="button" class="sq-btn-enroll" @click.stop="handleEnroll(row)">
+              <button
+                type="button"
+                class="sq-btn-enroll"
+                :disabled="pending.has(row.id)"
+                @click.stop="handleEnroll(row)"
+              >
                 {{ row.enrolled ? "이어하기" : "수강" }}
               </button>
 
@@ -110,7 +117,12 @@
                       aria-hidden="true"
                     ></i>
                   </button>
-                  <button type="button" class="sq-btn-enroll" @click.stop="handleEnroll(child)">
+                  <button
+                    type="button"
+                    class="sq-btn-enroll"
+                    :disabled="pending.has(child.id)"
+                    @click.stop="handleEnroll(child)"
+                  >
                     {{ child.enrolled ? "이어하기" : "수강" }}
                   </button>
 
@@ -130,8 +142,9 @@
 </template>
 
 <script setup>
-import { computed, reactive } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
+import { getErrorMessage } from "@/api/errors";
 import { useEnrollStore } from "@/stores/enroll";
 
 const router = useRouter();
@@ -180,9 +193,34 @@ const groupedByDifficulty = computed(() => {
   }).filter((group) => group.rows.length);
 });
 
-function handleEnroll(item) {
-  enrollStore.enroll(item.id);
-  router.push(item.route);
+const errorMessage = ref("");
+const pending = reactive(new Set());
+
+onMounted(async () => {
+  try {
+    await enrollStore.fetchEnrollments();
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error, "수강 목록을 불러오지 못했습니다.");
+  }
+});
+
+// 미수강: 신청만 수행(이동 없음) / 수강 중: 과목 상세로 이동
+async function handleEnroll(item) {
+  if (item.enrolled) {
+    router.push(`/dashboard/courses/${item.id}`);
+    return;
+  }
+  if (pending.has(item.id)) return;
+
+  errorMessage.value = "";
+  pending.add(item.id);
+  try {
+    await enrollStore.enroll(item.id);
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error, "수강신청에 실패했습니다.");
+  } finally {
+    pending.delete(item.id);
+  }
 }
 </script>
 
@@ -321,8 +359,19 @@ function handleEnroll(item) {
   cursor: pointer;
 }
 
-.sq-btn-enroll:hover {
+.sq-btn-enroll:hover:not(:disabled) {
   background: var(--sq-color-accent-hover);
+}
+
+.sq-btn-enroll:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sq-enroll__error {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--sq-badge-absent-text);
 }
 
 .sq-lecture-detail {

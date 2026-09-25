@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-// import client from "@/api/client";
+import client from "@/api/client";
 
 export const useEnrollStore = defineStore("enroll", () => {
   const items = ref([
@@ -121,14 +121,30 @@ export const useEnrollStore = defineStore("enroll", () => {
     },
   ]);
 
-  function enroll(id) {
+  // 서버의 수강 목록(slug)으로 enrolled 상태 동기화
+  async function fetchEnrollments() {
+    const { data } = await client.get("/enrollments");
+    const enrolledSlugs = new Set(data.enrollments);
+    items.value.forEach((item) => {
+      item.enrolled = enrolledSlugs.has(item.id);
+    });
+  }
+
+  // POST 성공(또는 409 중복) 시에만 enrolled=true, 그 외 에러는 호출부로 전달
+  async function enroll(id) {
     const item = items.value.find((i) => i.id === id);
-    if (item && !item.enrolled) {
+    if (!item) return;
+    try {
+      await client.post("/enrollments", { course_slug: id });
       item.enrolled = true;
-      // TODO: 백엔드 연동 시 활성화
-      // await client.post("/enrollments", { chapter_id: id });
+    } catch (error) {
+      if (error.response?.status === 409) {
+        item.enrolled = true;
+        return;
+      }
+      throw error;
     }
   }
 
-  return { items, enroll };
+  return { items, fetchEnrollments, enroll };
 });
