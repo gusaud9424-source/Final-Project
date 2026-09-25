@@ -63,6 +63,23 @@ class AttendanceSession(db.Model):
     status = db.Column(db.Enum("submitted", "absent", name="attendance_status"), nullable=False)
 
 
+TASK_KEYS = ("concept", "practice", "defense")
+
+
+class TaskProgress(db.Model):
+    __tablename__ = "task_progress"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "course_id", "task_key", name="uq_task_progress_user_course_task"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey("courses.id"), nullable=False)
+    # 허용 값은 TASK_KEYS 상수로 애플리케이션에서 검증
+    task_key = db.Column(db.String(20), nullable=False)
+    completed_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+
 class VerificationCode(db.Model):
     __tablename__ = "verification_codes"
     __table_args__ = (

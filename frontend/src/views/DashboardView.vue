@@ -35,7 +35,7 @@
           <div class="sq-summary-card__head">
             <span class="sq-summary-card__title">학습 요약</span>
             <span class="sq-badge sq-badge--round">
-              {{ summary.completedRounds }}/{{ summary.totalRounds }} 회차 완료 ({{ summary.percent }}%)
+              {{ summary.completedTasks }}/{{ summary.totalTasks }} 과제 완료 ({{ summary.percent }}%)
             </span>
           </div>
 
@@ -45,8 +45,8 @@
               <span class="sq-summary-stat__value">{{ summary.courseCount }}개</span>
             </div>
             <div class="sq-summary-stat">
-              <span class="sq-summary-stat__label">완료 회차</span>
-              <span class="sq-summary-stat__value">{{ summary.completedRounds }}회</span>
+              <span class="sq-summary-stat__label">완료 과제</span>
+              <span class="sq-summary-stat__value">{{ summary.completedTasks }}개</span>
             </div>
             <div class="sq-summary-stat">
               <span class="sq-summary-stat__label">전체 진도율</span>
@@ -121,7 +121,7 @@ const router = useRouter();
 
 const loading = ref(true);
 const errorMessage = ref("");
-const summary = ref({ courseCount: 0, completedRounds: 0, totalRounds: 0, percent: 0 });
+const summary = ref({ courseCount: 0, completedTasks: 0, totalTasks: 0, percent: 0 });
 const courses = ref([]);
 
 function goToCourse(course) {

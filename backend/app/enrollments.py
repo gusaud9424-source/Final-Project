@@ -1,22 +1,16 @@
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
 from . import db
-from .models import Course, Enrollment, User
+from .models import Course, Enrollment
+from .progress import current_user
 
 bp = Blueprint("enrollments", __name__, url_prefix="/api/v1")
 
 
-def _current_user():
-    user_id = session.get("user_id")
-    if not user_id:
-        return None
-    return db.session.get(User, user_id)
-
-
 @bp.get("/enrollments")
 def list_enrollments():
-    user = _current_user()
+    user = current_user()
     if not user:
         return jsonify(message="로그인이 필요합니다."), 401
 
@@ -31,7 +25,7 @@ def list_enrollments():
 
 @bp.post("/enrollments")
 def create_enrollment():
-    user = _current_user()
+    user = current_user()
     if not user:
         return jsonify(message="로그인이 필요합니다."), 401
 

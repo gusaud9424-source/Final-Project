@@ -31,11 +31,13 @@ def create_app():
     from .auth import bp as auth_bp
     from .dashboard import bp as dashboard_bp
     from .enrollments import bp as enrollments_bp
+    from .courses import bp as courses_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(enrollments_bp)
+    app.register_blueprint(courses_bp)
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(_error):
