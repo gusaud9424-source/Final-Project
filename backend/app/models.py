@@ -8,6 +8,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.Enum("admin", "student", name="user_role"), nullable=False, default="student")
+    nickname = db.Column(db.String(30), unique=True, nullable=True)
     name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(20), nullable=False)
@@ -97,4 +98,38 @@ class VerificationCode(db.Model):
     attempts = db.Column(db.Integer, nullable=False, default=0)
     verified = db.Column(db.Boolean, nullable=False, default=False)
     expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+
+class PointLedger(db.Model):
+    __tablename__ = "point_ledger"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "source", "ref", name="uq_point_ledger_user_source_ref"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    # source 허용 값은 애플리케이션에서 검증(mission/attendance/practice/hint 등)
+    source = db.Column(db.String(30), nullable=False)
+    # 1회성 이벤트의 중복 지급 방지 키. NULL은 반복 지급이 의도적으로 허용된 이벤트를 뜻한다
+    # (MariaDB UNIQUE 제약은 NULL끼리 충돌하지 않으므로 ref=NULL 행은 몇 개든 함께 존재할 수 있다).
+    ref = db.Column(db.String(60), nullable=True)
+    amount = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.String(120))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+
+class XpLedger(db.Model):
+    __tablename__ = "xp_ledger"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "source", "ref", name="uq_xp_ledger_user_source_ref"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    source = db.Column(db.String(30), nullable=False)
+    # ref=NULL은 반복 지급이 의도적으로 허용된 이벤트를 뜻한다(point_ledger.ref 참고)
+    ref = db.Column(db.String(60), nullable=True)
+    amount = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, server_default=db.func.now())

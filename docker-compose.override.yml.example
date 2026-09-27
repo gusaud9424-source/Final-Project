@@ -1,0 +1,10 @@
+# 개발 전용 오버라이드 예시.
+# 사용법: cp docker-compose.override.yml.example docker-compose.override.yml
+#
+# docker-compose.override.yml은 .gitignore 처리되어 저장소에 커밋되지 않는다.
+# docker compose는 -f 옵션 없이 실행하면 docker-compose.yml + docker-compose.override.yml을
+# 자동으로 병합하므로, 이 파일이 없는 평가/배포 체크아웃에서는 docker-compose.yml의
+# 기본 CMD(flask run, 디버그 없음)만 그대로 적용된다.
+services:
+  backend:
+    command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--debug"]
