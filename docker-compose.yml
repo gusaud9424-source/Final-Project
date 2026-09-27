@@ -31,6 +31,7 @@ services:
       FLASK_ENV: development
     volumes:
       - ./backend:/app
+      - sandbox_ipc:/ipc
     ports:
       - "127.0.0.1:5000:5000"
     depends_on:
@@ -38,6 +39,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      sandbox:
+        condition: service_started
     networks: [webnet]
 
   db:
@@ -75,6 +78,11 @@ services:
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
+    mem_limit: 128m
+    pids_limit: 64
+    cpus: 0.5
+    volumes:
+      - sandbox_ipc:/ipc
     restart: "no"
 
 networks:
@@ -82,3 +90,4 @@ networks:
 
 volumes:
   dbdata:
+  sandbox_ipc:
