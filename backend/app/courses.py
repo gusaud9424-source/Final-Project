@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from . import limiter
 from .course_content import DEFENSE_QUIZZES, public_quiz
 from .models import TASK_KEYS, Course, Enrollment
+from .practice_builders import PRACTICE_BUILDERS
 from .progress import (
     TASK_TITLES,
     completed_tasks,
@@ -11,6 +12,7 @@ from .progress import (
     progress_summary,
     serialize_datetime,
 )
+from .rewards import roll_and_grant
 
 bp = Blueprint("courses", __name__, url_prefix="/api/v1/courses")
 
@@ -94,3 +96,63 @@ def submit_quiz(slug):
 
     mark_task_complete(user.id, course.id, "defense")
     return jsonify(correct=True)
+
+
+@bp.get("/<slug>/practice/hints")
+def practice_hints(slug):
+    user, course, error = _load_enrolled_course(slug)
+    if error:
+        return error
+
+    builder = PRACTICE_BUILDERS.get(course.slug)
+    if not builder:
+        return jsonify(message="이 과목에는 아직 실습이 없습니다."), 404
+
+    difficulty = request.args.get("difficulty", "")
+    if difficulty not in builder.difficulties:
+        return jsonify(message="지원하지 않는 난이도입니다."), 400
+
+    return jsonify(hints=builder.hints(difficulty))
+
+
+@bp.post("/<slug>/practice/run")
+@limiter.limit("10 per minute")
+def run_practice(slug):
+    user, course, error = _load_enrolled_course(slug)
+    if error:
+        return error
+
+    builder = PRACTICE_BUILDERS.get(course.slug)
+    if not builder:
+        return jsonify(message="이 과목에는 아직 실습이 없습니다."), 404
+
+    payload = request.get_json(silent=True) or {}
+    difficulty = payload.get("difficulty")
+    user_input = payload.get("input", "")
+
+    error_message = builder.validate_input(difficulty, user_input)
+    if error_message:
+        return jsonify(message=error_message), 400
+
+    result = builder.run(difficulty, user_input)
+
+    rewarded = False
+    xp_amount = None
+    point_amount = None
+    if result.success:
+        mark_task_complete(user.id, course.id, "practice")
+        xp_row, point_row = roll_and_grant(
+            user.id, "practice", f"{course.title} 실습 성공", ref=f"practice:{course.slug}"
+        )
+        if xp_row:
+            rewarded = True
+            xp_amount = xp_row.amount
+            point_amount = point_row.amount
+
+    return jsonify(
+        success=result.success,
+        output=result.output,
+        rewarded=rewarded,
+        xp=xp_amount,
+        points=point_amount,
+    )
