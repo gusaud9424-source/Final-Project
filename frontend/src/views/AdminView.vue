@@ -8,7 +8,7 @@
   <div class="sq-admin">
     <div class="sq-admin__head">
       <h1 class="sq-admin__title">관리자</h1>
-      <p class="sq-admin__subtitle">전체 학생의 챕터별 진도를 확인하세요.</p>
+      <p class="sq-admin__subtitle">전체 학생의 과목별 진도를 확인하세요.</p>
     </div>
 
     <StudentsOverview />

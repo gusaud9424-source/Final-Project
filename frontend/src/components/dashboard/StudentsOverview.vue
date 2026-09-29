@@ -16,7 +16,7 @@
           <tr>
             <th>학생</th>
             <th>이메일</th>
-            <th>강의별 진도</th>
+            <th>과목별 진도</th>
           </tr>
         </thead>
         <tbody>

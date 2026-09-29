@@ -9,18 +9,18 @@
     <div class="sq-dashboard__head">
       <div>
         <h1 class="sq-dashboard__title">
-          {{ authStore.isAdmin ? "전체 학생 현황" : "내 강의실" }}
+          {{ authStore.isAdmin ? "전체 학생 현황" : "학습 대시보드" }}
         </h1>
         <p class="sq-dashboard__subtitle">
           {{
             authStore.isAdmin
-              ? "전체 학생의 챕터별 진도를 확인하세요."
-              : "챕터별 진도와 학습 현황을 한눈에 확인하세요."
+              ? "전체 학생의 과목별 진도를 확인하세요."
+              : "과목별 진도와 학습 현황을 한눈에 확인하세요."
           }}
         </p>
       </div>
       <router-link v-if="!authStore.isAdmin" to="/chapters" class="sq-dashboard__cta">
-        챕터 선택하러 가기
+        과목 선택하러 가기
       </router-link>
     </div>
 
@@ -41,7 +41,7 @@
 
           <div class="sq-summary-card__stats">
             <div class="sq-summary-stat">
-              <span class="sq-summary-stat__label">수강 챕터</span>
+              <span class="sq-summary-stat__label">수강 과목</span>
               <span class="sq-summary-stat__value">{{ summary.courseCount }}개</span>
             </div>
             <div class="sq-summary-stat">

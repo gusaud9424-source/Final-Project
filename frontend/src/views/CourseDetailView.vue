@@ -6,7 +6,7 @@
 -->
 <template>
   <div class="sq-course">
-    <router-link to="/dashboard" class="sq-course__back">← 내 강의실로 돌아가기</router-link>
+    <router-link to="/dashboard" class="sq-course__back">← 대시보드로 돌아가기</router-link>
 
     <p v-if="loading" class="sq-course__status">불러오는 중...</p>
 
