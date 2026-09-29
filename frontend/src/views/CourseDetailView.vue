@@ -76,54 +76,55 @@
       <!-- 미션 -->
       <section v-else-if="activeTab === 'tasks'" class="sq-course__panel" role="tabpanel">
         <h2 class="sq-course__section-title">미션</h2>
-        <ul class="sq-task-list">
-          <li v-for="task in tasks" :key="task.key" class="sq-task">
-            <span class="sq-task__title">{{ task.title }}</span>
-            <span class="sq-task__hint">{{ TASK_HINTS[task.key] }}</span>
-            <span class="sq-badge" :class="task.completed ? 'sq-badge--success' : 'sq-badge--round'">
-              {{ task.completed ? "완료" : "미완료" }}
-            </span>
-            <span class="sq-task__date">{{ task.completed ? formatDate(task.completedAt) : "-" }}</span>
+
+        <ul class="sq-mission-list">
+          <li v-for="(task, index) in tasks" :key="task.key" class="sq-mission-card">
+            <div class="sq-mission-card__head">
+              <span class="sq-mission-card__title">{{ task.title }}</span>
+              <button
+                v-if="!task.completed && TASK_ACTION[task.key]"
+                type="button"
+                class="sq-mission-card__action"
+                @click="TASK_ACTION[task.key].handler()"
+              >
+                {{ TASK_ACTION[task.key].label }}
+              </button>
+            </div>
+
+            <div class="sq-mission-card__badges">
+              <span class="sq-badge sq-badge--round">{{ index + 1 }}회차</span>
+              <span class="sq-badge" :class="task.completed ? 'sq-badge--success' : 'sq-badge--round'">
+                {{ task.completed ? "완료" : "미완료" }}
+              </span>
+            </div>
+
+            <p class="sq-mission-card__desc">{{ TASK_HINTS[task.key] }}</p>
+
+            <div class="sq-mission-card__submission">
+              <span class="sq-mission-card__submission-label">내 제출물</span>
+              <p class="sq-mission-card__submission-content">
+                {{ task.completed ? SUBMISSION_TEXT[task.key] : "-" }}
+              </p>
+              <span class="sq-chip">{{ task.completed ? formatDate(task.completedAt) : "-" }}</span>
+            </div>
           </li>
         </ul>
 
-        <div v-if="quiz" class="sq-quiz">
-          <h3 class="sq-quiz__title">방어 퀴즈</h3>
-          <p class="sq-quiz__question">
-            <template v-for="(part, i) in splitCode(quiz.question)" :key="i">
-              <code v-if="part.code">{{ part.text }}</code><template v-else>{{ part.text }}</template>
-            </template>
-          </p>
+        <button
+          type="button"
+          class="sq-btn sq-mission-quiz-btn"
+          :disabled="!course.quizSetAvailable"
+          @click="quizModalOpen = true"
+        >
+          {{ course.quizSetAvailable ? "퀴즈 풀기" : "준비 중" }}
+        </button>
 
-          <p v-if="defenseCompleted" class="sq-quiz__result sq-quiz__result--correct">
-            정답입니다. 방어 퀴즈 미션을 완료했습니다.
-          </p>
-
-          <form v-else class="sq-quiz__form" @submit.prevent="submitQuiz">
-            <label v-for="(option, index) in quiz.options" :key="index" class="sq-quiz__option">
-              <input v-model="selectedAnswer" type="radio" name="quiz" :value="index" />
-              <span>
-                <template v-for="(part, i) in splitCode(option)" :key="i">
-                  <code v-if="part.code">{{ part.text }}</code><template v-else>{{ part.text }}</template>
-                </template>
-              </span>
-            </label>
-
-            <p v-if="quizResult && !quizResult.correct" class="sq-quiz__result sq-quiz__result--wrong">
-              오답입니다. {{ quizResult.explanation }}
-            </p>
-            <p v-if="quizError" class="sq-course__error">{{ quizError }}</p>
-
-            <button type="submit" class="sq-btn" :disabled="selectedAnswer === null || quizSubmitting">
-              {{ quizSubmitting ? "채점 중..." : "제출" }}
-            </button>
-          </form>
-
-          <p v-if="quizResult?.rewarded" class="sq-quiz__reward">
-            보상 대기 중: {{ quizResult.rewardType === "xp" ? "XP" : "포인트" }} +{{ quizResult.amount }}
-            — 상단 보물상자에서 받으세요
-          </p>
-        </div>
+        <QuizSetModal
+          v-if="quizModalOpen"
+          :slug="slug"
+          @close="quizModalOpen = false"
+          @finished="onQuizFinished"
+        />
       </section>
 
       <!-- 과목 정보 -->
@@ -147,11 +148,12 @@
 
 <script setup>
 import { computed, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 import { useEnrollStore } from "@/stores/enroll";
 import { useRewardStore } from "@/stores/reward";
+import QuizSetModal from "@/components/practice/QuizSetModal.vue";
 
 const TABS = [
   { key: "lecture", label: "실습" },
@@ -161,7 +163,12 @@ const TABS = [
 const TASK_HINTS = {
   concept: "과목 정보 탭 열람",
   practice: "실습 페이지에서 공격 성공",
-  defense: "방어 퀴즈 정답",
+  defense: "방어 퀴즈 70% 이상 통과",
+};
+const SUBMISSION_TEXT = {
+  concept: "과목 정보 열람 완료",
+  practice: "실습 성공 판정 완료",
+  defense: "퀴즈 통과",
 };
 const INFO_FIELDS = [
   { key: "summary", label: "설명" },
@@ -171,6 +178,7 @@ const INFO_FIELDS = [
 const DIFFICULTY_TONE = { 초급: "success", 중급: "warning", 고급: "danger" };
 
 const route = useRoute();
+const router = useRouter();
 const enrollStore = useEnrollStore();
 const rewardStore = useRewardStore();
 const slug = route.params.slug;
@@ -181,19 +189,19 @@ const errorStatus = ref(null);
 const course = ref({});
 const tasks = ref([]);
 const progress = ref({ completed: 0, total: 0, percent: 0 });
-const quiz = ref(null);
 const activeTab = ref("lecture");
 
-const selectedAnswer = ref(null);
-const quizSubmitting = ref(false);
-const quizResult = ref(null);
-const quizError = ref("");
+const quizModalOpen = ref(false);
 const conceptError = ref("");
 let conceptRequested = false;
 
+const TASK_ACTION = {
+  concept: { label: "이동", handler: () => selectTab("info") },
+  practice: { label: "이동", handler: () => router.push(`/chapters/${slug}`) },
+};
+
 const detail = computed(() => enrollStore.items.find((i) => i.id === slug)?.detail || null);
 const difficultyTone = computed(() => DIFFICULTY_TONE[course.value.difficulty] || "success");
-const defenseCompleted = computed(() => tasks.value.some((t) => t.key === "defense" && t.completed));
 
 // 백틱(`)으로 감싼 구간을 code 조각으로 분리 (v-html 미사용)
 function splitCode(text) {
@@ -210,7 +218,6 @@ async function loadCourse() {
   course.value = data.course;
   tasks.value = data.tasks;
   progress.value = data.progress;
-  quiz.value = data.quiz;
 }
 
 // 과목 정보 탭 최초 열람 시 concept 완료 처리(서버 멱등)
@@ -233,21 +240,11 @@ function selectTab(key) {
   if (key === "info") completeConcept();
 }
 
-async function submitQuiz() {
-  if (selectedAnswer.value === null || quizSubmitting.value) return;
-  quizSubmitting.value = true;
-  quizError.value = "";
-  quizResult.value = null;
-  try {
-    const { data } = await client.post(`/courses/${slug}/quiz`, { answer: selectedAnswer.value });
-    quizResult.value = data;
-    if (data.correct) await loadCourse();
+async function onQuizFinished(result) {
+  if (result.passed) {
+    await loadCourse();
     // 미션 보상은 미수령 상태로 쌓이므로 보물상자 배지만 갱신
-    if (data.rewarded) await rewardStore.fetchPending();
-  } catch (error) {
-    quizError.value = getErrorMessage(error, "채점에 실패했습니다.");
-  } finally {
-    quizSubmitting.value = false;
+    if (result.rewarded) await rewardStore.fetchPending();
   }
 }
 
@@ -438,107 +435,101 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-/* 미션 목록 */
-.sq-task-list {
+/* 미션 카드 목록 */
+.sq-mission-list {
   width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--sq-card-border);
-}
-
-.sq-task {
-  display: grid;
-  grid-template-columns: 120px 1fr auto 100px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--sq-card-border);
-  font-size: 14px;
 }
 
-.sq-task__title {
+.sq-mission-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--sq-card-border);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+}
+
+.sq-mission-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sq-mission-card__title {
+  font-size: 15px;
   font-weight: 700;
   color: var(--sq-text-main);
 }
 
-.sq-task__hint,
-.sq-task__date {
-  color: var(--sq-text-sub);
-}
-
-.sq-task__date {
-  text-align: right;
-}
-
-/* 퀴즈 */
-.sq-quiz {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.sq-quiz__title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: var(--sq-font-weight-heading);
-  color: var(--sq-text-main);
-}
-
-.sq-quiz__question {
-  margin: 0;
-  font-size: 15px;
+.sq-mission-card__action {
+  padding: 6px 14px;
+  border: 1px solid var(--sq-color-accent);
+  border-radius: var(--sq-radius-none);
+  background: transparent;
+  color: var(--sq-color-accent);
+  font-size: 13px;
   font-weight: 600;
-  color: var(--sq-text-main);
-}
-
-.sq-quiz__form {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.sq-quiz__option {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--sq-card-border);
-  font-size: 14px;
   cursor: pointer;
 }
 
-.sq-quiz__option:has(input:checked) {
-  border-color: var(--sq-color-accent);
+.sq-mission-card__action:hover {
   background: var(--sq-color-accent-subtle);
 }
 
-.sq-quiz__result {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 14px;
+.sq-mission-card__badges {
+  display: flex;
+  gap: 6px;
 }
 
-.sq-quiz__result--correct {
-  background: var(--sq-badge-submitted-bg);
+.sq-mission-card__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sq-text-sub);
+}
+
+.sq-mission-card__submission {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--sq-card-border);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+}
+
+.sq-mission-card__submission-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sq-text-sub);
+}
+
+.sq-mission-card__submission-content {
+  margin: 0;
+  font-size: 14px;
   color: var(--sq-text-main);
 }
 
-.sq-quiz__result--wrong {
-  background: var(--sq-badge-absent-bg);
-  color: var(--sq-badge-absent-text);
+.sq-chip {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+  border: 1px solid var(--sq-card-border);
+  font-size: 12px;
+  color: var(--sq-text-sub);
 }
 
-/* 실습 페이지 보상 안내(.sq-practice__reward)와 동일 톤 */
-.sq-quiz__reward {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--sq-color-accent);
+.sq-mission-quiz-btn {
+  width: 100%;
+  text-align: center;
 }
 
 /* 과목 정보 */
@@ -592,16 +583,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  .sq-task {
-    grid-template-columns: 1fr auto;
-  }
-
-  .sq-task__hint,
-  .sq-task__date {
-    grid-column: 1 / -1;
-    text-align: left;
-  }
-
   .sq-info {
     grid-template-columns: 1fr;
   }
