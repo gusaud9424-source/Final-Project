@@ -89,6 +89,15 @@ def _seed_catalog_courses():
     return courses
 
 
+def _seed_enrollment_only(user, course):
+    """수강 신청만 생성(과제 진도·출석 데이터 없음). 이미 수강 중이면 아무 것도 하지 않는다."""
+    enrollment = Enrollment.query.filter_by(user_id=user.id, course_id=course.id).first()
+    if enrollment:
+        return
+    db.session.add(Enrollment(user_id=user.id, course_id=course.id))
+    db.session.commit()
+
+
 def _seed_course_data(student, course):
     enrollment = Enrollment.query.filter_by(user_id=student.id, course_id=course.id).first()
     if enrollment:
@@ -131,11 +140,22 @@ with app.app_context():
         phone=os.environ["SEED_STUDENT_PHONE"],
         password=os.environ.get("SEED_STUDENT_PASSWORD"),
     )
+    demo, demo_password = _seed_user(
+        username="demo1",
+        role="student",
+        name="시연용 학습자",
+        email="demo1@secuquest.local",
+        phone="01000000001",
+        password=os.environ.get("SEED_STUDENT_PASSWORD"),
+    )
     courses = _seed_catalog_courses()
     _seed_course_data(student, courses["command-injection"])
+    _seed_enrollment_only(demo, courses["command-injection"])
 
     if admin_password:
         print(f"[seed] admin 계정 생성 — username=admin, password={admin_password}")
     if student_password:
         print(f"[seed] student1 계정 생성 — username=student1, password={student_password}")
+    if demo_password:
+        print(f"[seed] demo1 계정 생성 — username=demo1, password={demo_password}")
     print("seed done")
