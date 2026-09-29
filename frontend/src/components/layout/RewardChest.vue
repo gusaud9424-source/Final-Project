@@ -38,7 +38,7 @@
               >
                 <i
                   class="sq-chest-item__icon bi"
-                  :class="item.type === 'xp' ? 'bi-stars' : 'bi-coin'"
+                  :class="item.type === 'xp' ? 'bi-stars' : 'bi-coin sq-chest-item__icon--point'"
                   aria-hidden="true"
                 ></i>
                 <span class="sq-chest-item__amount">
@@ -260,6 +260,10 @@ onUnmounted(() => document.removeEventListener("keydown", handleKeydown));
 .sq-chest-item__icon {
   font-size: 20px;
   color: var(--sq-color-accent);
+}
+
+.sq-chest-item__icon--point {
+  font-size: 28px;
 }
 
 .sq-chest-item__amount {
