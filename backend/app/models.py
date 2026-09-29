@@ -133,3 +133,23 @@ class XpLedger(db.Model):
     amount = db.Column(db.Integer, nullable=False)
     reason = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+
+class Reward(db.Model):
+    """보물상자 보상. claimed_at=NULL이면 미수령, 수령 시 원장(xp/point_ledger)에 반영"""
+    __tablename__ = "rewards"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "source", "ref", "type", name="uq_rewards_user_source_ref_type"),
+        db.Index("ix_rewards_user_claimed", "user_id", "claimed_at"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    type = db.Column(db.Enum("xp", "point", name="reward_type"), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    source = db.Column(db.String(30), nullable=False)
+    # 1회성 이벤트 키(practice:<slug> / mission:<slug>). 수령 시 원장에 같은 source·ref로 기록된다
+    ref = db.Column(db.String(60), nullable=False)
+    reason = db.Column(db.String(120))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    claimed_at = db.Column(db.DateTime, nullable=True)

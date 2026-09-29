@@ -1,5 +1,5 @@
 <!--
-  SecuQuest — 과목 상세 (강의 · 과제 · 과목 정보)
+  SecuQuest — 과목 상세 (실습 · 미션 · 과목 정보)
   Layout inspired by publicly viewable UI of Modulabs AX Education,
   reinterpreted for SecuQuest bootcamp capstone (educational use only).
   © 2026 5팀_Security Learning Platform
@@ -31,7 +31,7 @@
 
         <div class="sq-course__progress">
           <span class="sq-course__progress-label">
-            {{ progress.completed }}/{{ progress.total }} 과제 완료 · {{ progress.percent }}%
+            {{ progress.completed }}/{{ progress.total }} 미션 완료 · {{ progress.percent }}%
           </span>
           <div
             class="sq-progress-bar"
@@ -61,9 +61,9 @@
         </button>
       </nav>
 
-      <!-- 강의 -->
+      <!-- 실습 -->
       <section v-if="activeTab === 'lecture'" class="sq-course__panel" role="tabpanel">
-        <h2 class="sq-course__section-title">강의</h2>
+        <h2 class="sq-course__section-title">실습</h2>
         <p class="sq-course__text">{{ course.description }}</p>
         <p v-if="detail" class="sq-course__text">
           <template v-for="(part, i) in splitCode(detail.summary)" :key="i">
@@ -73,9 +73,9 @@
         <router-link :to="`/chapters/${course.slug}`" class="sq-btn">실습 시작</router-link>
       </section>
 
-      <!-- 과제 -->
+      <!-- 미션 -->
       <section v-else-if="activeTab === 'tasks'" class="sq-course__panel" role="tabpanel">
-        <h2 class="sq-course__section-title">과제</h2>
+        <h2 class="sq-course__section-title">미션</h2>
         <ul class="sq-task-list">
           <li v-for="task in tasks" :key="task.key" class="sq-task">
             <span class="sq-task__title">{{ task.title }}</span>
@@ -96,7 +96,7 @@
           </p>
 
           <p v-if="defenseCompleted" class="sq-quiz__result sq-quiz__result--correct">
-            정답입니다. 방어 퀴즈 과제를 완료했습니다.
+            정답입니다. 방어 퀴즈 미션을 완료했습니다.
           </p>
 
           <form v-else class="sq-quiz__form" @submit.prevent="submitQuiz">
@@ -118,6 +118,11 @@
               {{ quizSubmitting ? "채점 중..." : "제출" }}
             </button>
           </form>
+
+          <p v-if="quizResult?.rewarded" class="sq-quiz__reward">
+            보상 대기 중: {{ quizResult.rewardType === "xp" ? "XP" : "포인트" }} +{{ quizResult.amount }}
+            — 상단 보물상자에서 받으세요
+          </p>
         </div>
       </section>
 
@@ -146,10 +151,11 @@ import { useRoute } from "vue-router";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 import { useEnrollStore } from "@/stores/enroll";
+import { useRewardStore } from "@/stores/reward";
 
 const TABS = [
-  { key: "lecture", label: "강의" },
-  { key: "tasks", label: "과제" },
+  { key: "lecture", label: "실습" },
+  { key: "tasks", label: "미션" },
   { key: "info", label: "과목 정보" },
 ];
 const TASK_HINTS = {
@@ -166,6 +172,7 @@ const DIFFICULTY_TONE = { 초급: "success", 중급: "warning", 고급: "danger"
 
 const route = useRoute();
 const enrollStore = useEnrollStore();
+const rewardStore = useRewardStore();
 const slug = route.params.slug;
 
 const loading = ref(true);
@@ -235,6 +242,8 @@ async function submitQuiz() {
     const { data } = await client.post(`/courses/${slug}/quiz`, { answer: selectedAnswer.value });
     quizResult.value = data;
     if (data.correct) await loadCourse();
+    // 미션 보상은 미수령 상태로 쌓이므로 보물상자 배지만 갱신
+    if (data.rewarded) await rewardStore.fetchPending();
   } catch (error) {
     quizError.value = getErrorMessage(error, "채점에 실패했습니다.");
   } finally {
@@ -429,7 +438,7 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-/* 과제 목록 */
+/* 미션 목록 */
 .sq-task-list {
   width: 100%;
   margin: 0;
@@ -522,6 +531,14 @@ onMounted(async () => {
 .sq-quiz__result--wrong {
   background: var(--sq-badge-absent-bg);
   color: var(--sq-badge-absent-text);
+}
+
+/* 실습 페이지 보상 안내(.sq-practice__reward)와 동일 톤 */
+.sq-quiz__reward {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sq-color-accent);
 }
 
 /* 과목 정보 */

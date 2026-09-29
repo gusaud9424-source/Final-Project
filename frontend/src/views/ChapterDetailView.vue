@@ -71,7 +71,7 @@
             </span>
             <pre class="sq-practice__output">{{ lastResult.output }}</pre>
             <p v-if="lastResult.rewarded" class="sq-practice__reward">
-              실습 보상 획득: XP +{{ lastResult.xp }} · 포인트 +{{ lastResult.points }}
+              보상 대기 중: XP +{{ lastResult.xp }} · 포인트 +{{ lastResult.points }} — 상단 보물상자에서 받으세요
             </p>
             <p v-else-if="lastResult.success" class="sq-practice__reward sq-practice__reward--muted">
               이미 실습 보상을 받은 과목입니다.
@@ -99,7 +99,7 @@ import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 import VulnerabilityPage from "@/components/common/VulnerabilityPage.vue";
 import { useEnrollStore } from "@/stores/enroll";
-import { useProfileStore } from "@/stores/profile";
+import { useRewardStore } from "@/stores/reward";
 
 // 백엔드 PRACTICE_BUILDERS에 등록된 과목만 실습 UI를 노출한다.
 const PRACTICE_SUPPORTED_SLUGS = ["command-injection"];
@@ -118,7 +118,7 @@ const TIER_INPUT_LABEL = {
 
 const route = useRoute();
 const enrollStore = useEnrollStore();
-const profileStore = useProfileStore();
+const rewardStore = useRewardStore();
 const slug = route.params.id;
 
 const loading = ref(true);
@@ -183,7 +183,8 @@ async function runPractice() {
       input: userInput.value,
     });
     lastResult.value = data;
-    if (data.rewarded) await profileStore.fetchProfile();
+    // 보상은 미수령 상태로 쌓이므로 보물상자 배지만 갱신
+    if (data.rewarded) await rewardStore.fetchPending();
   } catch (error) {
     runError.value = getErrorMessage(error, "실행에 실패했습니다.");
   } finally {

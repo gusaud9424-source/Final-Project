@@ -33,6 +33,8 @@ def create_app():
     from .enrollments import bp as enrollments_bp
     from .courses import bp as courses_bp
     from .profile import bp as profile_bp
+    from .rewards import bp as rewards_bp
+    from .cli import register_cli
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -40,6 +42,8 @@ def create_app():
     app.register_blueprint(enrollments_bp)
     app.register_blueprint(courses_bp)
     app.register_blueprint(profile_bp)
+    app.register_blueprint(rewards_bp)
+    register_cli(app)
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(_error):

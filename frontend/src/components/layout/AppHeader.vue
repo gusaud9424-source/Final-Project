@@ -25,54 +25,58 @@
       <router-link class="sq-tab" to="/resources">자료실</router-link>
     </nav>
 
-    <div ref="profileWrapRef" class="sq-header__profile-wrap">
-      <div
-        class="sq-header__user"
-        role="button"
-        tabindex="0"
-        @click="toggleProfile"
-        @keydown.enter="toggleProfile"
-      >
-        <span class="sq-header__avatar" aria-hidden="true">{{ avatarInitial }}</span>
-        <div class="sq-header__user-info">
-          <span class="sq-header__user-name">{{ authStore.user?.name }}</span>
-          <span class="sq-header__user-email">{{ authStore.user?.email }}</span>
-        </div>
-        <button
-          type="button"
-          class="sq-header__logout"
-          aria-label="로그아웃"
-          @click.stop="handleLogout"
+    <div class="sq-header__actions">
+      <RewardChest />
+
+      <div ref="profileWrapRef" class="sq-header__profile-wrap">
+        <div
+          class="sq-header__user"
+          role="button"
+          tabindex="0"
+          @click="toggleProfile"
+          @keydown.enter="toggleProfile"
         >
-          로그아웃
-        </button>
-      </div>
-
-      <div v-if="showProfile" class="sq-header__profile-panel" @click.stop>
-        <p class="sq-profile__level">Lv.{{ profileStore.level }}</p>
-        <div class="sq-progress-bar" role="progressbar" :aria-valuenow="xpPercent" aria-valuemin="0" aria-valuemax="100">
-          <div class="sq-progress-bar__fill" :style="{ width: xpPercent + '%' }"></div>
-        </div>
-        <p class="sq-profile__xp">
-          {{ profileStore.currentXp }} / {{ profileStore.xpForNextLevel ?? "MAX" }} XP
-        </p>
-        <p class="sq-profile__points">보유 포인트 {{ profileStore.points }}P</p>
-
-        <form class="sq-profile__form" @submit.prevent="saveNickname">
-          <label class="sq-profile__label" for="sq-nickname-input">닉네임</label>
-          <input
-            id="sq-nickname-input"
-            v-model="nicknameInput"
-            class="sq-profile__input"
-            type="text"
-            maxlength="20"
-            placeholder="닉네임"
-          />
-          <button type="submit" class="sq-profile__save" :disabled="nicknameSaving">
-            {{ nicknameSaving ? "저장 중..." : "변경" }}
+          <span class="sq-header__avatar" aria-hidden="true">{{ avatarInitial }}</span>
+          <div class="sq-header__user-info">
+            <span class="sq-header__user-name">{{ authStore.user?.name }}</span>
+            <span class="sq-header__user-email">{{ authStore.user?.email }}</span>
+          </div>
+          <button
+            type="button"
+            class="sq-header__logout"
+            aria-label="로그아웃"
+            @click.stop="handleLogout"
+          >
+            로그아웃
           </button>
-        </form>
-        <p v-if="nicknameError" class="sq-profile__error">{{ nicknameError }}</p>
+        </div>
+
+        <div v-if="showProfile" class="sq-header__profile-panel" @click.stop>
+          <p class="sq-profile__level">Lv.{{ profileStore.level }}</p>
+          <div class="sq-progress-bar" role="progressbar" :aria-valuenow="xpPercent" aria-valuemin="0" aria-valuemax="100">
+            <div class="sq-progress-bar__fill" :style="{ width: xpPercent + '%' }"></div>
+          </div>
+          <p class="sq-profile__xp">
+            {{ profileStore.currentXp }} / {{ profileStore.xpForNextLevel ?? "MAX" }} XP
+          </p>
+          <p class="sq-profile__points">보유 포인트 {{ profileStore.points }}P</p>
+
+          <form class="sq-profile__form" @submit.prevent="saveNickname">
+            <label class="sq-profile__label" for="sq-nickname-input">닉네임</label>
+            <input
+              id="sq-nickname-input"
+              v-model="nicknameInput"
+              class="sq-profile__input"
+              type="text"
+              maxlength="20"
+              placeholder="닉네임"
+            />
+            <button type="submit" class="sq-profile__save" :disabled="nicknameSaving">
+              {{ nicknameSaving ? "저장 중..." : "변경" }}
+            </button>
+          </form>
+          <p v-if="nicknameError" class="sq-profile__error">{{ nicknameError }}</p>
+        </div>
       </div>
     </div>
   </header>
@@ -82,12 +86,15 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import BrandMark from "@/components/brand/BrandMark.vue";
+import RewardChest from "@/components/layout/RewardChest.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useProfileStore } from "@/stores/profile";
+import { useRewardStore } from "@/stores/reward";
 import { getErrorMessage } from "@/api/errors";
 
 const authStore = useAuthStore();
 const profileStore = useProfileStore();
+const rewardStore = useRewardStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -137,6 +144,8 @@ onUnmounted(() => document.removeEventListener("click", handleOutsideClick));
 
 async function handleLogout() {
   await authStore.logout();
+  // 다른 계정 로그인 시 이전 사용자의 미수령 목록이 남지 않도록 초기화
+  rewardStore.reset();
   router.push("/login");
 }
 </script>
@@ -247,6 +256,13 @@ async function handleLogout() {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* 보물상자 + 프로필 묶음 */
+.sq-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* 프로필 드롭다운 */

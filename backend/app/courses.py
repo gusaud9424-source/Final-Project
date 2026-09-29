@@ -12,7 +12,7 @@ from .progress import (
     progress_summary,
     serialize_datetime,
 )
-from .rewards import roll_and_grant
+from .rewards import roll_pending
 
 bp = Blueprint("courses", __name__, url_prefix="/api/v1/courses")
 
@@ -95,7 +95,17 @@ def submit_quiz(slug):
         return jsonify(correct=False, explanation=quiz["explanation"])
 
     mark_task_complete(user.id, course.id, "defense")
-    return jsonify(correct=True)
+    # 미션 보상은 과목별 고정 1종, 미수령 상태로 생성(수령은 보물상자에서)
+    rows = roll_pending(
+        user.id, "mission", f"{course.title} 미션", ref=f"mission:{course.slug}", course_slug=course.slug
+    )
+    reward = rows[0] if rows else None
+    return jsonify(
+        correct=True,
+        rewarded=reward is not None,
+        rewardType=reward.type if reward else None,
+        amount=reward.amount if reward else None,
+    )
 
 
 @bp.get("/<slug>/practice/hints")
@@ -141,13 +151,13 @@ def run_practice(slug):
     point_amount = None
     if result.success:
         mark_task_complete(user.id, course.id, "practice")
-        xp_row, point_row = roll_and_grant(
-            user.id, "practice", f"{course.title} 실습 성공", ref=f"practice:{course.slug}"
-        )
-        if xp_row:
+        # 실습 보상은 XP·포인트 2종, 미수령 상태로 생성(수령은 보물상자에서)
+        rows = roll_pending(user.id, "practice", f"{course.title} 실습", ref=f"practice:{course.slug}")
+        if rows:
+            amounts = {row.type: row.amount for row in rows}
             rewarded = True
-            xp_amount = xp_row.amount
-            point_amount = point_row.amount
+            xp_amount = amounts["xp"]
+            point_amount = amounts["point"]
 
     return jsonify(
         success=result.success,

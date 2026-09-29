@@ -18,6 +18,7 @@ SecuQuest는 웹 보안 6대 핵심 취약점(Command Injection, XSS 3종, SQL I
 | [04-phase3.5](./04-phase3-5.md) | 레벨/XP/포인트 시스템, 격리 sandbox 실행 채널 |
 | [05-command-injection](./05-command-injection.md) | 마이그레이션 정리, Command Injection 실습 모듈 설계·구현·검증 |
 | [06-todo](./06-todo.md) | 남은 작업 목록 |
+| [07-reward-box](./07-reward-box.md) | 보물상자 보상 수령(pending → claim), 과목 상세 탭 라벨 변경 |
 
 각 챕터는 "무엇을 했는가 → 왜 그렇게 했는가 → 어떻게 구현했는가" 순서로 서술했으며,
 코드는 핵심만 인용하고 전체는 파일 경로로 안내한다.
