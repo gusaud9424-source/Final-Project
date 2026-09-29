@@ -316,7 +316,7 @@ onMounted(async () => {
   padding: 12px 14px;
   border: 1px solid var(--sq-card-border);
   background: var(--sq-text-main);
-  color: #f5f5f5;
+  color: var(--sq-color-terminal-fg);
   font-size: 13px;
   font-family: ui-monospace, SFMono-Regular, monospace;
   white-space: pre-wrap;
