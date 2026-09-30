@@ -14,8 +14,25 @@ const routes = [
     meta: { public: true, showHeader: false },
   },
   {
+    path: "/find-id/phone",
+    component: () => import("@/views/FindIdView.vue"),
+    props: { method: "phone" },
+    meta: { public: true, showHeader: false },
+  },
+  {
     path: "/find-password",
     component: () => import("@/views/FindPasswordView.vue"),
+    meta: { public: true, showHeader: false },
+  },
+  {
+    path: "/find-password/phone",
+    component: () => import("@/views/FindPasswordView.vue"),
+    props: { method: "phone" },
+    meta: { public: true, showHeader: false },
+  },
+  {
+    path: "/signup",
+    component: () => import("@/views/SignupView.vue"),
     meta: { public: true, showHeader: false },
   },
   { path: "/dashboard", component: () => import("@/views/DashboardView.vue") },
