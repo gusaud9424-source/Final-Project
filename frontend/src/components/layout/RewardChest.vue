@@ -208,11 +208,28 @@ onUnmounted(() => document.removeEventListener("keydown", handleKeydown));
 }
 
 .sq-chest-modal__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   border: none;
+  border-radius: var(--sq-radius-none);
   background: transparent;
   color: var(--sq-text-sub);
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
+}
+
+.sq-chest-modal__close:hover {
+  background: var(--sq-color-accent-subtle);
+  color: var(--sq-text-main);
+}
+
+.sq-chest-modal__close .bi {
+  pointer-events: none;
 }
 
 .sq-chest-modal__empty {
