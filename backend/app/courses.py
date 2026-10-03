@@ -1,10 +1,11 @@
 import secrets
 
 from flask import Blueprint, jsonify, request, session
+from sqlalchemy.exc import IntegrityError
 
-from . import limiter
+from . import db, limiter
 from .course_content import DEFENSE_QUIZZES, public_quiz
-from .models import TASK_KEYS, Course, Enrollment
+from .models import TASK_KEYS, Course, Enrollment, Reward
 from .practice_builders import PRACTICE_BUILDERS
 from .quiz_bank import QUIZ_BANKS
 from .progress import (
@@ -15,7 +16,7 @@ from .progress import (
     progress_summary,
     serialize_datetime,
 )
-from .rewards import roll_pending
+from .rewards import LEDGER_MODELS, RANGES, _apply_claim, _balance, _reward_types, roll_pending
 
 bp = Blueprint("courses", __name__, url_prefix="/api/v1/courses")
 
@@ -99,7 +100,7 @@ def submit_quiz(slug):
         return jsonify(correct=False, explanation=quiz["explanation"])
 
     mark_task_complete(user.id, course.id, "defense")
-    # 미션 보상은 과목별 고정 1종, 미수령 상태로 생성(수령은 보물상자에서)
+    # 미션 보상은 과목별 고정 1종, 미수령 상태로 생성(수령은 과목 상세 > 미션 탭에서)
     rows = roll_pending(
         user.id, "mission", f"{course.title} 미션", ref=f"mission:{course.slug}", course_slug=course.slug
     )
@@ -155,7 +156,7 @@ def run_practice(slug):
     point_amount = None
     if result.success:
         mark_task_complete(user.id, course.id, "practice")
-        # 실습 보상은 XP·포인트 2종, 미수령 상태로 생성(수령은 보물상자에서)
+        # 실습 보상은 XP·포인트 2종, 미수령 상태로 생성(수령은 과목 상세 > 미션 탭에서)
         rows = roll_pending(user.id, "practice", f"{course.title} 실습", ref=f"practice:{course.slug}")
         if rows:
             amounts = {row.type: row.amount for row in rows}
@@ -306,4 +307,86 @@ def quiz_set_submit(slug):
         rewarded=rewarded,
         rewardType=reward_type,
         amount=amount,
+    )
+
+
+# ── 미션 탭 보상 (미션 카드에서만 수령) ─────────────────────────────
+# 미션(task) → 보상 source. concept(개념 학습)은 보상 없이 진도만 반영
+TASK_REWARD_SOURCE = {"practice": "practice", "defense": "mission"}
+
+
+def _task_reward_state(user_id, course, task_key):
+    """미션 하나의 보상 상태: locked(미달성) / pending(수령 대기) / claimed(수령 완료) / none(보상 없음)"""
+    source = TASK_REWARD_SOURCE.get(task_key)
+    if not source:
+        return {"status": "none", "items": []}
+    ref = f"{source}:{course.slug}"
+
+    rows = Reward.query.filter_by(user_id=user_id, source=source, ref=ref).order_by(Reward.type).all()
+    if rows:
+        pending = any(r.claimed_at is None for r in rows)
+        return {
+            "status": "pending" if pending else "claimed",
+            "items": [{"type": r.type, "amount": r.amount, "claimed": r.claimed_at is not None} for r in rows],
+        }
+
+    # 보물상자 도입 전 자동 지급된 기록(원장에 직접 기록)도 수령 완료로 표시
+    legacy = []
+    for reward_type, model in LEDGER_MODELS.items():
+        row = model.query.filter_by(user_id=user_id, source=source, ref=ref).first()
+        if row:
+            legacy.append({"type": reward_type, "amount": row.amount, "claimed": True})
+    if legacy:
+        return {"status": "claimed", "items": legacy}
+
+    # 아직 달성 전: 받을 보상 종류와 범위 미리보기
+    return {
+        "status": "locked",
+        "items": [
+            {"type": t, "min": RANGES[t][source][0], "max": RANGES[t][source][1]}
+            for t in _reward_types(source, course.slug)
+        ],
+    }
+
+
+@bp.get("/<slug>/rewards")
+def course_rewards(slug):
+    user, course, error = _load_enrolled_course(slug)
+    if error:
+        return error
+    return jsonify(rewards={key: _task_reward_state(user.id, course, key) for key in TASK_KEYS})
+
+
+@bp.post("/<slug>/rewards/<task_key>/claim")
+@limiter.limit("30 per minute")
+def claim_course_reward(slug, task_key):
+    user, course, error = _load_enrolled_course(slug)
+    if error:
+        return error
+    source = TASK_REWARD_SOURCE.get(task_key)
+    if not source:
+        return jsonify(message="보상이 없는 미션입니다."), 404
+
+    # 본인 · 해당 미션의 미수령 보상만 잠금 조회. 금액·종류는 DB 값만 사용
+    rows = (
+        Reward.query.filter_by(user_id=user.id, source=source, ref=f"{source}:{course.slug}", claimed_at=None)
+        .with_for_update()
+        .all()
+    )
+    if not rows:
+        db.session.rollback()
+        return jsonify(message="받을 보상이 없습니다."), 409
+
+    for reward in rows:
+        _apply_claim(reward)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(message="이미 받은 보상입니다."), 409
+
+    return jsonify(
+        claimed=[{"type": r.type, "amount": r.amount} for r in rows],
+        reward=_task_reward_state(user.id, course, task_key),
+        profile=_balance(user.id),
     )

@@ -61,54 +61,86 @@
         </button>
       </nav>
 
-      <!-- 실습 -->
+      <!-- 실습 탭 -->
       <section v-if="activeTab === 'lecture'" class="sq-course__panel" role="tabpanel">
         <h2 class="sq-course__section-title">실습</h2>
-        <p class="sq-course__text">{{ course.description }}</p>
-        <p v-if="detail" class="sq-course__text">
-          <template v-for="(part, i) in splitCode(detail.summary)" :key="i">
-            <code v-if="part.code">{{ part.text }}</code><template v-else>{{ part.text }}</template>
-          </template>
-        </p>
+
+        <template v-if="guide">
+          <div class="sq-guide-grid">
+            <article class="sq-guide-card">
+              <span class="sq-guide-card__label"><i class="bi bi-bullseye" aria-hidden="true"></i> 실습 목적</span>
+              <p class="sq-guide-card__text">{{ guide.practice.goal }}</p>
+            </article>
+            <article class="sq-guide-card">
+              <span class="sq-guide-card__label"><i class="bi bi-question-circle" aria-hidden="true"></i> 왜 배우나</span>
+              <p class="sq-guide-card__text">{{ guide.practice.why }}</p>
+            </article>
+          </div>
+
+          <article class="sq-guide-card sq-guide-card--wide">
+            <span class="sq-guide-card__label"><i class="bi bi-window" aria-hidden="true"></i> 실습 화면</span>
+            <p class="sq-guide-card__text">
+              <template v-for="(part, i) in splitCode(guide.practice.scenario)" :key="i">
+                <code v-if="part.code">{{ part.text }}</code><template v-else>{{ part.text }}</template>
+              </template>
+            </p>
+          </article>
+
+          <article class="sq-guide-card sq-guide-card--wide">
+            <span class="sq-guide-card__label"><i class="bi bi-list-ol" aria-hidden="true"></i> 진행 방법</span>
+            <ol class="sq-guide-steps">
+              <li v-for="(step, i) in guide.practice.steps" :key="i">
+                <template v-for="(part, j) in splitCode(step)" :key="j">
+                  <code v-if="part.code">{{ part.text }}</code><template v-else>{{ part.text }}</template>
+                </template>
+              </li>
+            </ol>
+            <p class="sq-guide-tip"><i class="bi bi-lightbulb" aria-hidden="true"></i> {{ guide.practice.tip }}</p>
+          </article>
+        </template>
+        <p v-else class="sq-course__text">{{ course.description }}</p>
+
         <router-link :to="`/chapters/${course.slug}`" class="sq-btn">실습 시작</router-link>
       </section>
 
-      <!-- 미션 -->
+      <!-- 미션 탭 -->
       <section v-else-if="activeTab === 'tasks'" class="sq-course__panel" role="tabpanel">
         <h2 class="sq-course__section-title">미션</h2>
+        <p class="sq-course__hint">미션을 달성하면 오른쪽 보상 버튼이 활성화됩니다. 보상은 여기 미션 탭에서 받으세요.</p>
 
         <ul class="sq-mission-list">
           <li v-for="(task, index) in tasks" :key="task.key" class="sq-mission-card">
-            <div class="sq-mission-card__head">
-              <span class="sq-mission-card__title">{{ task.title }}</span>
+            <div class="sq-mission-card__body">
+              <div class="sq-mission-card__head">
+                <span class="sq-badge sq-badge--round">{{ index + 1 }}회차</span>
+                <span class="sq-mission-card__title">{{ missionInfo(task.key).title }}</span>
+                <span class="sq-badge" :class="task.completed ? 'sq-badge--success' : 'sq-badge--round'">
+                  {{ task.completed ? "완료" : "미완료" }}
+                </span>
+              </div>
+              <p class="sq-mission-card__desc">{{ missionInfo(task.key).desc }}</p>
               <button
                 v-if="!task.completed && TASK_ACTION[task.key]"
                 type="button"
                 class="sq-mission-card__action"
                 @click="TASK_ACTION[task.key].handler()"
               >
-                {{ TASK_ACTION[task.key].label }}
+                {{ TASK_ACTION[task.key].label }} <i class="bi bi-arrow-right" aria-hidden="true"></i>
               </button>
             </div>
 
-            <div class="sq-mission-card__badges">
-              <span class="sq-badge sq-badge--round">{{ index + 1 }}회차</span>
-              <span class="sq-badge" :class="task.completed ? 'sq-badge--success' : 'sq-badge--round'">
-                {{ task.completed ? "완료" : "미완료" }}
-              </span>
-            </div>
-
-            <p class="sq-mission-card__desc">{{ TASK_HINTS[task.key] }}</p>
-
-            <div class="sq-mission-card__submission">
-              <span class="sq-mission-card__submission-label">내 제출물</span>
-              <p class="sq-mission-card__submission-content">
-                {{ task.completed ? SUBMISSION_TEXT[task.key] : "-" }}
-              </p>
-              <span class="sq-chip">{{ task.completed ? formatDate(task.completedAt) : "-" }}</span>
+            <!-- 오른쪽: 보상 영역 (미션 탭에서만 수령) -->
+            <div class="sq-mission-reward">
+              <RewardSlot
+                :state="rewardState(task.key)"
+                :busy="rewardStore.claiming"
+                @claim="claimReward(task.key)"
+              />
             </div>
           </li>
         </ul>
+
+        <p v-if="rewardMessage" class="sq-course__error">{{ rewardMessage }}</p>
 
         <button
           type="button"
@@ -116,7 +148,7 @@
           :disabled="!course.quizSetAvailable"
           @click="quizModalOpen = true"
         >
-          {{ course.quizSetAvailable ? "퀴즈 풀기" : "준비 중" }}
+          {{ course.quizSetAvailable ? "방어 퀴즈 풀기" : "준비 중" }}
         </button>
 
         <QuizSetModal
@@ -128,11 +160,44 @@
         />
       </section>
 
-      <!-- 과목 정보 -->
+      <!-- 과목 정보 탭 -->
       <section v-else class="sq-course__panel" role="tabpanel">
         <h2 class="sq-course__section-title">과목 정보</h2>
         <p v-if="conceptError" class="sq-course__error">{{ conceptError }}</p>
-        <dl v-if="detail" class="sq-info">
+
+        <template v-if="guide">
+          <article class="sq-guide-card sq-guide-card--wide">
+            <span class="sq-guide-card__label"><i class="bi bi-info-circle" aria-hidden="true"></i> 어떤 취약점인가</span>
+            <p class="sq-guide-card__text">{{ guide.info.summary }}</p>
+          </article>
+
+          <article class="sq-guide-card sq-guide-card--wide sq-guide-card--soft">
+            <span class="sq-guide-card__label"><i class="bi bi-chat-quote" aria-hidden="true"></i> 쉽게 말하면</span>
+            <p class="sq-guide-card__text">{{ guide.info.analogy }}</p>
+          </article>
+
+          <div class="sq-guide-grid">
+            <article class="sq-guide-card sq-guide-card--danger">
+              <span class="sq-guide-card__label"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> 막지 못하면</span>
+              <p class="sq-guide-card__text">{{ guide.info.impact }}</p>
+            </article>
+            <article class="sq-guide-card sq-guide-card--safe">
+              <span class="sq-guide-card__label"><i class="bi bi-shield-check" aria-hidden="true"></i> 방어 방법</span>
+              <p class="sq-guide-card__text">{{ guide.info.defense }}</p>
+            </article>
+          </div>
+
+          <article v-if="detail" class="sq-guide-card sq-guide-card--wide">
+            <span class="sq-guide-card__label"><i class="bi bi-code-slash" aria-hidden="true"></i> 공격 예시 (참고)</span>
+            <p class="sq-guide-card__text">
+              <template v-for="(part, i) in splitCode(detail.exploit)" :key="i">
+                <code v-if="part.code">{{ part.text }}</code><template v-else>{{ part.text }}</template>
+              </template>
+            </p>
+          </article>
+        </template>
+
+        <dl v-else-if="detail" class="sq-info">
           <template v-for="field in INFO_FIELDS" :key="field.key">
             <dt>{{ field.label }}</dt>
             <dd>
@@ -155,22 +220,14 @@ import { getErrorMessage } from "@/api/errors";
 import { useEnrollStore } from "@/stores/enroll";
 import { useRewardStore } from "@/stores/reward";
 import QuizSetModal from "@/components/practice/QuizSetModal.vue";
+import RewardSlot from "@/components/practice/RewardSlot.vue";
+import { COURSE_GUIDES, MISSION_GUIDE } from "@/content/courseGuides";
 
 const TABS = [
   { key: "lecture", label: "실습" },
   { key: "tasks", label: "미션" },
   { key: "info", label: "과목 정보" },
 ];
-const TASK_HINTS = {
-  concept: "과목 정보 탭 열람",
-  practice: "실습 페이지에서 공격 성공",
-  defense: "퀴즈 70% 이상 통과",
-};
-const SUBMISSION_TEXT = {
-  concept: "과목 정보 열람 완료",
-  practice: "실습 성공 판정 완료",
-  defense: "퀴즈 통과",
-};
 const INFO_FIELDS = [
   { key: "summary", label: "설명" },
   { key: "exploit", label: "공격 예시" },
@@ -194,24 +251,32 @@ const activeTab = ref("lecture");
 
 const quizModalOpen = ref(false);
 const conceptError = ref("");
+const rewardMessage = ref("");
+// task_key → { status, items } (서버 /courses/<slug>/rewards)
+const rewards = ref({});
 let conceptRequested = false;
 
 const TASK_ACTION = {
-  concept: { label: "이동", handler: () => selectTab("info") },
-  practice: { label: "이동", handler: () => router.push(`/chapters/${slug}`) },
+  concept: { label: "과목 정보 보기", handler: () => selectTab("info") },
+  practice: { label: "실습 하러 가기", handler: () => router.push(`/chapters/${slug}`) },
+  defense: { label: "퀴즈 풀기", handler: () => (quizModalOpen.value = true) },
 };
 
+const guide = computed(() => COURSE_GUIDES[slug] || null);
 const detail = computed(() => enrollStore.items.find((i) => i.id === slug)?.detail || null);
 const difficultyTone = computed(() => DIFFICULTY_TONE[course.value.difficulty] || "success");
+
+function missionInfo(key) {
+  return MISSION_GUIDE[key] || { title: key, desc: "" };
+}
+
+function rewardState(key) {
+  return rewards.value[key] || { status: "none", items: [] };
+}
 
 // 백틱(`)으로 감싼 구간을 code 조각으로 분리 (v-html 미사용)
 function splitCode(text) {
   return (text || "").split("`").map((part, index) => ({ text: part, code: index % 2 === 1 }));
-}
-
-function formatDate(iso) {
-  if (!iso) return "-";
-  return new Date(iso).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
 }
 
 async function loadCourse() {
@@ -219,6 +284,14 @@ async function loadCourse() {
   course.value = data.course;
   tasks.value = data.tasks;
   progress.value = data.progress;
+}
+
+async function loadRewards() {
+  try {
+    rewards.value = await rewardStore.fetchCourseRewards(slug);
+  } catch {
+    // 보상 상태 조회 실패는 과목 화면 로딩을 막지 않는다
+  }
 }
 
 // 과목 정보 탭 최초 열람 시 concept 완료 처리(서버 멱등)
@@ -241,17 +314,27 @@ function selectTab(key) {
   if (key === "info") completeConcept();
 }
 
+async function claimReward(taskKey) {
+  rewardMessage.value = "";
+  try {
+    await rewardStore.claimTask(slug, taskKey);
+    await loadRewards();
+  } catch (error) {
+    rewardMessage.value = getErrorMessage(error, "보상을 받지 못했습니다.");
+  }
+}
+
 async function onQuizFinished(result) {
   if (result.passed) {
     await loadCourse();
-    // 미션 보상은 미수령 상태로 쌓이므로 보물상자 배지만 갱신
-    if (result.rewarded) await rewardStore.fetchPending();
+    await loadRewards();
   }
 }
 
 onMounted(async () => {
   try {
     await loadCourse();
+    await loadRewards();
   } catch (error) {
     errorStatus.value = error.response?.status ?? null;
     errorMessage.value = getErrorMessage(error, "과목 정보를 불러오지 못했습니다.");
@@ -287,6 +370,12 @@ onMounted(async () => {
   margin: 0;
   font-size: 14px;
   color: var(--sq-badge-absent-text);
+}
+
+.sq-course__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sq-text-sub);
 }
 
 /* 과목 헤더 */
@@ -385,7 +474,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
+  gap: 14px;
   padding: var(--sq-card-padding);
   border: 1px solid var(--sq-card-border);
   border-radius: var(--sq-radius-none);
@@ -412,6 +501,85 @@ onMounted(async () => {
   background: var(--sq-color-accent-subtle);
   color: var(--sq-text-main);
   font-size: 13px;
+}
+
+/* 학습 안내 카드 (실습 · 과목 정보 공용) */
+.sq-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.sq-guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--sq-card-border);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+}
+
+.sq-guide-card--wide {
+  flex: 0 0 auto;
+}
+
+.sq-guide-card--soft {
+  background: var(--sq-color-accent-subtle);
+}
+
+.sq-guide-card--danger {
+  border-color: var(--sq-badge-absent-text);
+}
+
+.sq-guide-card--safe {
+  border-color: var(--sq-badge-submitted-text);
+}
+
+.sq-guide-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sq-text-main);
+}
+
+.sq-guide-card--danger .sq-guide-card__label {
+  color: var(--sq-badge-absent-text);
+}
+
+.sq-guide-card--safe .sq-guide-card__label {
+  color: var(--sq-badge-submitted-text);
+}
+
+.sq-guide-card__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--sq-text-body);
+}
+
+.sq-guide-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.sq-guide-tip {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-color-accent-subtle);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sq-text-main);
 }
 
 .sq-btn {
@@ -449,19 +617,26 @@ onMounted(async () => {
 
 .sq-mission-card {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: stretch;
+  gap: 16px;
   padding: 16px;
   border: 1px solid var(--sq-card-border);
   border-radius: var(--sq-radius-none);
   background: var(--sq-bg-card);
 }
 
+.sq-mission-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .sq-mission-card__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
 .sq-mission-card__title {
@@ -470,7 +645,19 @@ onMounted(async () => {
   color: var(--sq-text-main);
 }
 
+.sq-mission-card__desc {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--sq-card-border);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-page, var(--sq-color-accent-subtle));
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sq-text-sub);
+}
+
 .sq-mission-card__action {
+  align-self: flex-start;
   padding: 6px 14px;
   border: 1px solid var(--sq-color-accent);
   border-radius: var(--sq-radius-none);
@@ -485,47 +672,13 @@ onMounted(async () => {
   background: var(--sq-color-accent-subtle);
 }
 
-.sq-mission-card__badges {
+.sq-mission-reward {
+  flex: 0 0 200px;
   display: flex;
-  gap: 6px;
-}
-
-.sq-mission-card__desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--sq-text-sub);
-}
-
-.sq-mission-card__submission {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px;
-  border: 1px solid var(--sq-card-border);
-  border-radius: var(--sq-radius-none);
-  background: var(--sq-bg-card);
-}
-
-.sq-mission-card__submission-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--sq-text-sub);
-}
-
-.sq-mission-card__submission-content {
-  margin: 0;
-  font-size: 14px;
-  color: var(--sq-text-main);
-}
-
-.sq-chip {
-  align-self: flex-start;
-  padding: 4px 10px;
-  border-radius: var(--sq-radius-none);
-  background: var(--sq-bg-card);
-  border: 1px solid var(--sq-card-border);
-  font-size: 12px;
-  color: var(--sq-text-sub);
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--sq-card-border);
+  padding-left: 16px;
 }
 
 .sq-mission-quiz-btn {
@@ -533,7 +686,7 @@ onMounted(async () => {
   text-align: center;
 }
 
-/* 과목 정보 */
+/* 과목 정보 (fallback) */
 .sq-info {
   margin: 0;
   display: grid;
@@ -584,8 +737,21 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  .sq-info {
+  .sq-info,
+  .sq-guide-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sq-mission-card {
+    flex-direction: column;
+  }
+
+  .sq-mission-reward {
+    flex-basis: auto;
+    border-left: none;
+    border-top: 1px solid var(--sq-card-border);
+    padding-left: 0;
+    padding-top: 12px;
   }
 }
 </style>

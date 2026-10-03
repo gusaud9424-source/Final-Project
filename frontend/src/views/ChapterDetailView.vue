@@ -169,7 +169,7 @@
             </span>
             <pre class="sq-practice__output">{{ lastResult.output }}</pre>
             <p v-if="lastResult.rewarded" class="sq-practice__reward">
-              보상 대기 중: XP +{{ lastResult.xp }} · 포인트 +{{ lastResult.points }} — 상단 보물상자에서 받으세요
+              보상 대기 중: XP +{{ lastResult.xp }} · 포인트 +{{ lastResult.points }} — 과목 상세의 미션 탭에서 받으세요
             </p>
             <p v-else-if="lastResult.success" class="sq-practice__reward sq-practice__reward--muted">
               이미 실습 보상을 받은 과목입니다.
@@ -311,7 +311,7 @@ async function runPractice() {
       input: userInput.value,
     });
     lastResult.value = data;
-    // 보상은 미수령 상태로 쌓이므로 보물상자 배지만 갱신
+    // 보상은 미수령 상태로 쌓이고 과목 상세 > 미션 탭에서 수령
     if (data.rewarded) await rewardStore.fetchPending();
   } catch (error) {
     runError.value = getErrorMessage(error, "실행에 실패했습니다.");

@@ -29,7 +29,7 @@
             </p>
             <p v-if="result.rewarded" class="sq-quizset-result__reward">
               보상 대기 중: {{ result.rewardType === "xp" ? "XP" : "포인트" }} +{{ result.amount }}
-              — 상단 보물상자에서 받으세요
+              — 미션 탭에서 받으세요
             </p>
 
             <ul class="sq-quizset-result__list">

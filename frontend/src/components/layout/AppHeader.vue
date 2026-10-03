@@ -26,8 +26,6 @@
     </nav>
 
     <div class="sq-header__actions">
-      <RewardChest />
-
       <div ref="profileWrapRef" class="sq-header__profile-wrap">
         <div
           class="sq-header__user"
@@ -86,7 +84,6 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import BrandMark from "@/components/brand/BrandMark.vue";
-import RewardChest from "@/components/layout/RewardChest.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useProfileStore } from "@/stores/profile";
 import { useRewardStore } from "@/stores/reward";
@@ -258,7 +255,7 @@ async function handleLogout() {
   cursor: pointer;
 }
 
-/* 보물상자 + 프로필 묶음 */
+/* 프로필 묶음 */
 .sq-header__actions {
   display: flex;
   align-items: center;

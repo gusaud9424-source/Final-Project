@@ -75,7 +75,7 @@ def _reward_types(source, course_slug):
 
 
 def _already_rewarded(user_id, source, ref):
-    """보물상자(미수령·수령) 또는 기존 자동 지급 원장에 같은 이벤트가 있는지"""
+    """미수령·수령 보상 또는 기존 자동 지급 원장에 같은 이벤트가 있는지"""
     if Reward.query.filter_by(user_id=user_id, source=source, ref=ref).first():
         return True
     return any(
@@ -168,46 +168,5 @@ def list_pending():
     return jsonify(items=[serialize_reward(row) for row in rows], count=len(rows))
 
 
-@bp.post("/<int:reward_id>/claim")
-@limiter.limit("30 per minute")
-def claim_reward(reward_id):
-    user = current_user()
-    if not user:
-        return jsonify(message="로그인이 필요합니다."), 401
-
-    # 본인 소유 행만 잠금 조회. 금액·종류는 DB 값만 사용
-    reward = Reward.query.filter_by(id=reward_id, user_id=user.id).with_for_update().first()
-    if not reward:
-        db.session.rollback()
-        return jsonify(message="존재하지 않는 보상입니다."), 404
-    if reward.claimed_at:
-        db.session.rollback()
-        return jsonify(message="이미 받은 보상입니다."), 409
-
-    _apply_claim(reward)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify(message="이미 받은 보상입니다."), 409
-
-    return jsonify(claimed=[serialize_reward(reward)], profile=_balance(user.id))
-
-
-@bp.post("/claim-all")
-@limiter.limit("5 per minute")
-def claim_all():
-    user = current_user()
-    if not user:
-        return jsonify(message="로그인이 필요합니다."), 401
-
-    rewards = Reward.query.filter_by(user_id=user.id, claimed_at=None).with_for_update().all()
-    for reward in rewards:
-        _apply_claim(reward)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify(message="보상 수령 중 충돌이 발생했습니다. 다시 시도하세요."), 409
-
-    return jsonify(claimed=[serialize_reward(reward) for reward in rewards], profile=_balance(user.id))
+# 보상 수령은 과목 상세 > 미션 탭에서만 가능하다 (courses.py 의 /<slug>/rewards/<task>/claim).
+# 헤더 보물상자의 개별·일괄 수령 API(/rewards/<id>/claim, /rewards/claim-all)는 제거했다.
