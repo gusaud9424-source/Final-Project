@@ -23,7 +23,7 @@
         <button type="button" class="sq-dashboard__attendance-btn" @click="openAttendance">
           <i class="bi bi-calendar-check" aria-hidden="true"></i> 출석 체크
         </button>
-        <router-link to="/chapters" class="sq-dashboard__cta">과목 선택하러 가기</router-link>
+        <router-link to="/chapters" class="sq-dashboard__cta">학습 진도 보러 가기</router-link>
       </div>
     </div>
 

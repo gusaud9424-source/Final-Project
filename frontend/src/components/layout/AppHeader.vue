@@ -13,7 +13,7 @@
 
     <nav class="sq-header__nav" aria-label="주요 메뉴">
       <router-link class="sq-tab" to="/enroll">수강신청</router-link>
-      <router-link class="sq-tab" to="/chapters">과목 선택</router-link>
+      <router-link class="sq-tab" to="/chapters">학습 진도</router-link>
       <router-link
         class="sq-tab"
         :class="{ 'router-link-active': isDashboardActive }"

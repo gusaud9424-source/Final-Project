@@ -1,5 +1,5 @@
 <!--
-  SecuQuest — 과목 선택 (난이도별 과목 목록 + 과목별 진도율)
+  SecuQuest — 학습 진도 (난이도별 과목 목록 + 과목별 진도율)
   Layout inspired by publicly viewable UI of Modulabs AX Education,
   reinterpreted for SecuQuest bootcamp capstone (educational use only).
   © 2026 5팀_Security Learning Platform
@@ -9,7 +9,7 @@
     <!-- 상단 요약 카드 -->
     <section class="sq-chapters__header">
       <div class="sq-chapters__header-text">
-        <h1 class="sq-chapters__title">과목 선택</h1>
+        <h1 class="sq-chapters__title">학습 진도</h1>
         <p class="sq-chapters__subtitle">
           초급 → 중급 → 고급 순서로 학습하세요. 각 과목은 개념 학습 · 실습 · 퀴즈 3단계로 구성됩니다.
         </p>
