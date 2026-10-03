@@ -184,9 +184,7 @@ function handleOverlayClick() {
 }
 
 function handleClose() {
-  if (phase.value === "question") {
-    if (!window.confirm("진행 중인 퀴즈가 초기화됩니다. 닫을까요?")) return;
-  }
+  // X 클릭 시 항상 닫는다 (일부 환경에서 window.confirm이 자동 취소되어 안 닫히던 문제 수정)
   emit("close");
 }
 
