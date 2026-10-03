@@ -9,7 +9,12 @@
     <div class="sq-quizset-modal" @click.self="handleOverlayClick">
       <div class="sq-quizset-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="sq-quizset-title">
         <div class="sq-quizset-modal__header">
-          <h2 id="sq-quizset-title" class="sq-quizset-modal__title">{{ title ? title + " 퀴즈" : "퀴즈" }}</h2>
+          <div class="sq-quizset-modal__heading">
+            <h2 id="sq-quizset-title" class="sq-quizset-modal__title">{{ title ? title + " 퀴즈" : "퀴즈" }}</h2>
+            <span v-if="currentQuestion && phase === 'question'" class="sq-quizset-modal__count">
+              {{ currentIndex + 1 }}/{{ questions.length }}
+            </span>
+          </div>
           <button type="button" class="sq-quizset-modal__close" aria-label="닫기" @click="handleClose">
             <i class="bi bi-x-lg" aria-hidden="true"></i>
           </button>
@@ -47,7 +52,6 @@
         </template>
 
         <template v-else-if="currentQuestion">
-          <p class="sq-quizset-progress">{{ currentIndex + 1 }}/{{ questions.length }}</p>
           <p class="sq-quizset-question">{{ currentQuestion.question }}</p>
 
           <div class="sq-quizset-options">
@@ -226,6 +230,24 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.sq-quizset-modal__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sq-quizset-modal__count {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-color-accent-subtle);
+  color: var(--sq-color-accent);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .sq-quizset-modal__title {
@@ -265,13 +287,6 @@ onUnmounted(() => {
   margin: 0;
   font-size: 14px;
   color: var(--sq-text-sub);
-}
-
-.sq-quizset-progress {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--sq-color-accent);
 }
 
 .sq-quizset-question {
