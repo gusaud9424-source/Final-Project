@@ -33,6 +33,8 @@ def _serialize_course(enrollment, done_keys):
         "description": course.description,
         "instructor": course.instructor,
         "schedule": course.schedule,
+        # 과목선택 화면의 단계별(개념·실습·미션) 완료 표시용
+        "doneKeys": [key for key in TASK_KEYS if key in done_keys],
         **progress_summary(done_keys),
     }
 
