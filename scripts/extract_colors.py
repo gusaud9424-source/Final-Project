@@ -48,6 +48,17 @@ SAMPLES = [
     ("01-header-nav.png", "badge-dday-text", 1645, 605),
     ("01-header-nav.png", "badge-absent-bg", 460, 775),
     ("01-header-nav.png", "badge-absent-text", 475, 775),
+
+    # 인증 보조 화면 (08-auth-find-id.png)
+    ("08-auth-find-id.png", "auth-page-bg", 20, 20),
+    ("08-auth-find-id.png", "auth-card-border", 1, 400),
+    ("08-auth-find-id.png", "auth-card-bg", 325, 300),
+    ("08-auth-find-id.png", "auth-title-text", 82, 235),
+    ("08-auth-find-id.png", "auth-desc-text", 78, 280),
+    ("08-auth-find-id.png", "auth-input-border", 64, 380),
+    ("08-auth-find-id.png", "auth-placeholder-text", 97, 358),
+    ("08-auth-find-id.png", "auth-link-text", 76, 463),
+    ("08-auth-find-id.png", "auth-button-bg", 510, 460),
 ]
 
 _image_cache = {}

@@ -63,4 +63,51 @@
   --sq-page-padding-x: 32px; /* 추정: 캡처 관찰, 신뢰도 65% */
   --sq-card-gap: 16px; /* 추정: 캡처 관찰, 신뢰도 65% */
   --sq-card-padding: 20px; /* 추정: 캡처 관찰, 신뢰도 65% */
+
+  /* ─── 인증 보조 화면 (08-auth-find-id.png 픽셀 추출·실측) ───
+     브랜드 컬러는 캡처 그린 대신 --sq-color-accent 사용.
+     라운드는 전역 0 방침의 예외로 인증 화면에만 적용. */
+  --sq-auth-bg-page: #FFFFFF;
+  --sq-auth-card-border: #E5E5E5;
+  --sq-auth-text-title: #000000;
+  --sq-auth-text-desc: #2E2E2E;
+  --sq-auth-text-sub: #737373; /* 플레이스홀더 라벨·밑줄 링크 공용 */
+  --sq-auth-text-error: var(--sq-badge-absent-text); /* 카드 내 에러 메시지 (기존 로그인 에러 색) */
+  --sq-auth-message-size: 15px; /* 카드 내 안내·에러·결과 문구 (기존 폰트 크기 토큰 없음) */
+
+  --sq-radius-auth-card: 24px;
+  --sq-radius-auth-input: 12px;
+  --sq-radius-auth-button: 10px;
+
+  --sq-auth-card-width: 650px;
+  --sq-auth-card-min-height: 574px;
+  --sq-auth-card-padding-top: 64px;
+  --sq-auth-card-padding-x: 62px;
+  --sq-auth-card-padding-bottom: 60px;
+  --sq-auth-input-height: 86px;
+  --sq-auth-input-border-width: 2px;
+  --sq-auth-field-gap: 12px;
+  --sq-auth-button-width: 92px;
+  --sq-auth-button-height: 50px;
+  --sq-auth-footer-gap: 20px; /* 하단 링크 간 간격 */
+  --sq-auth-footer-top: 40px; /* 버튼 줄 ↔ 하단 링크 최소 간격 */
+  --sq-auth-page-top: 64px; /* 페이지 상단 ↔ 로고 */
+  --sq-auth-page-gutter: 16px; /* 좁은 화면 좌우 여백 */
+  --sq-auth-logo-gap: 10px; /* 방패 마크 ↔ 워드마크 */
+  --sq-auth-logo-bottom: 62px; /* 로고 ↔ 카드 */
+  --sq-auth-title-bottom: 8px; /* 제목 ↔ 안내문 */
+  --sq-auth-desc-gap: 6px; /* 안내문 ↔ ? 아이콘 */
+  --sq-auth-fields-top: 32px; /* 안내문 ↔ 첫 입력박스 */
+  --sq-auth-label-top: 16px; /* 입력박스 상단 ↔ 라벨 */
+  --sq-auth-input-padding-x: 18px; /* 라벨·입력 텍스트 좌우 */
+  --sq-auth-input-padding-top: 38px; /* 라벨 아래 입력 텍스트 시작 */
+  --sq-auth-input-padding-bottom: 12px;
+  --sq-auth-actions-top: 26px; /* 입력박스 ↔ 버튼 줄 */
+  --sq-auth-actions-gap: 16px; /* 좌측 링크 ↔ 버튼 */
+
+  /* 모바일 (≤575.98px) */
+  --sq-auth-page-top-mobile: 40px;
+  --sq-auth-logo-bottom-mobile: 32px;
+  --sq-auth-card-padding-y-mobile: 40px;
+  --sq-auth-card-padding-x-mobile: 24px;
 }
