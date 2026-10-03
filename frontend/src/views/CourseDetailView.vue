@@ -106,7 +106,11 @@
       <!-- 미션 탭 -->
       <section v-else-if="activeTab === 'tasks'" class="sq-course__panel" role="tabpanel">
         <h2 class="sq-course__section-title">미션</h2>
-        <p class="sq-course__hint">미션을 달성하면 오른쪽 보상 버튼이 활성화됩니다. 보상은 여기 미션 탭에서 받으세요.</p>
+        <p class="sq-course__hint">미션을 달성하면 오른쪽에서 보상을 받을 수 있습니다. 보상은 여기 미션 탭에서 받으세요.</p>
+        <p v-if="claimableCount" class="sq-course__notice">
+          <i class="bi bi-gift-fill" aria-hidden="true"></i>
+          받을 수 있는 보상이 {{ claimableCount }}개 있어요! 오른쪽 "보상 받기"를 눌러 받으세요.
+        </p>
 
         <ul class="sq-mission-list">
           <li v-for="(task, index) in tasks" :key="task.key" class="sq-mission-card">
@@ -124,8 +128,6 @@
               <div class="sq-mission-reward">
                 <RewardSlot
                   :state="rewardState(task.key)"
-                  :claimable="task.key === 'defense'"
-                  :task-completed="task.completed"
                   :busy="rewardStore.claiming"
                   @claim="claimReward(task.key)"
                 />
@@ -261,6 +263,11 @@ function rewardState(key) {
   return rewards.value[key] || { status: "none", items: [] };
 }
 
+// 수령 대기 중인 보상 개수 (미션 탭에서 받을 수 있는 보상)
+const claimableCount = computed(() =>
+  Object.values(rewards.value).filter((r) => r.status === "pending").length
+);
+
 // 백틱(`)으로 감싼 구간을 code 조각으로 분리 (v-html 미사용)
 function splitCode(text) {
   return (text || "").split("`").map((part, index) => ({ text: part, code: index % 2 === 1 }));
@@ -302,8 +309,6 @@ function selectTab(key) {
 }
 
 async function claimReward(taskKey) {
-  // 미션 탭에서는 방어 퀴즈(mission) 보상만 수령한다. 실습 보상은 보물상자에서.
-  if (taskKey !== "defense") return;
   rewardMessage.value = "";
   try {
     await rewardStore.claimTask(slug, taskKey);
@@ -365,6 +370,20 @@ onMounted(async () => {
   margin: 0;
   font-size: 13px;
   color: var(--sq-text-sub);
+}
+
+.sq-course__notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--sq-color-accent);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-color-accent-subtle);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sq-color-accent);
 }
 
 /* 과목 헤더 */

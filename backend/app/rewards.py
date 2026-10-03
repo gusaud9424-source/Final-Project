@@ -14,13 +14,18 @@ LEVEL_CAP = 50
 
 # 여기 등록된 source만 roll_pending으로 보상 생성 가능
 XP_RANGES = {
+    "concept": (20, 50),
     "practice": (50, 100),
     "mission": (30, 80),
 }
 POINT_RANGES = {
+    "concept": (10, 20),
     "practice": (20, 40),
     "mission": (10, 30),
 }
+
+# 과목 미션 보상 source (헤더 보물상자가 아니라 과목 미션 탭에서만 수령)
+COURSE_REWARD_SOURCES = ("concept", "practice", "mission")
 
 # 과목별 단일 보상 종류 (실습·미션 공통): 초급=경험치, 중급·고급=포인트
 COURSE_REWARD_TYPE = {
@@ -61,8 +66,8 @@ def points_balance(user_id):
 
 
 def _reward_types(source, course_slug):
-    """source별 생성할 보상 종류. 실습·미션 모두 과목별 고정 1종(경험치 또는 포인트)."""
-    if source in ("practice", "mission"):
+    """source별 생성할 보상 종류. 개념·실습·미션 모두 과목별 고정 1종(경험치 또는 포인트)."""
+    if source in ("concept", "practice", "mission"):
         reward_type = COURSE_REWARD_TYPE.get(course_slug)
         if not reward_type:
             # 잘못된 값으로 지급되지 않도록 미등록 과목은 보상을 만들지 않는다
@@ -158,11 +163,11 @@ def list_pending():
     if not user:
         return jsonify(message="로그인이 필요합니다."), 401
 
-    # 보물상자에는 미션(방어 퀴즈) 보상을 제외한 나머지만 모은다.
-    # 미션 보상은 과목 상세 > 미션 탭에서만 수령한다.
+    # 과목 미션 보상(개념·실습·미션)은 과목 미션 탭에서만 수령한다.
+    # 보물상자에는 그 외 보상만 모은다.
     rows = (
         Reward.query.filter_by(user_id=user.id, claimed_at=None)
-        .filter(Reward.source != "mission")
+        .filter(Reward.source.notin_(COURSE_REWARD_SOURCES))
         .order_by(Reward.created_at.desc(), Reward.id.desc())
         .all()
     )
@@ -181,9 +186,9 @@ def claim_reward(reward_id):
     if not reward:
         db.session.rollback()
         return jsonify(message="존재하지 않는 보상입니다."), 404
-    if reward.source == "mission":
+    if reward.source in COURSE_REWARD_SOURCES:
         db.session.rollback()
-        return jsonify(message="미션 보상은 과목의 미션 탭에서 받으세요."), 400
+        return jsonify(message="이 보상은 과목의 미션 탭에서 받으세요."), 400
     if reward.claimed_at:
         db.session.rollback()
         return jsonify(message="이미 받은 보상입니다."), 409
@@ -208,7 +213,7 @@ def claim_all():
 
     rewards = (
         Reward.query.filter_by(user_id=user.id, claimed_at=None)
-        .filter(Reward.source != "mission")
+        .filter(Reward.source.notin_(COURSE_REWARD_SOURCES))
         .with_for_update()
         .all()
     )

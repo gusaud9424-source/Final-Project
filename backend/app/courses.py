@@ -76,6 +76,10 @@ def complete_concept(slug):
         return error
 
     record = mark_task_complete(user.id, course.id, "concept")
+    # 개념 학습 보상도 미수령 상태로 생성(수령은 미션 탭)
+    roll_pending(
+        user.id, "concept", f"{course.title} 개념 학습", ref=f"concept:{course.slug}", course_slug=course.slug
+    )
     return jsonify(taskKey="concept", completed=True, completedAt=serialize_datetime(record.completed_at))
 
 
@@ -315,7 +319,7 @@ def quiz_set_submit(slug):
 
 # ── 미션 탭 보상 (미션 카드에서만 수령) ─────────────────────────────
 # 미션(task) → 보상 source. concept(개념 학습)은 보상 없이 진도만 반영
-TASK_REWARD_SOURCE = {"practice": "practice", "defense": "mission"}
+TASK_REWARD_SOURCE = {"concept": "concept", "practice": "practice", "defense": "mission"}
 
 
 def _task_reward_state(user_id, course, task_key):
@@ -367,10 +371,8 @@ def claim_course_reward(slug, task_key):
     if error:
         return error
     source = TASK_REWARD_SOURCE.get(task_key)
-    # 미션 탭에서는 미션(방어 퀴즈) 보상만 수령한다.
-    # 실습 보상은 헤더 보물상자에서 받는다.
-    if source != "mission":
-        return jsonify(message="이 보상은 헤더 보물상자에서 받으세요."), 400
+    if not source:
+        return jsonify(message="보상이 없는 미션입니다."), 404
 
     # 본인 · 해당 미션의 미수령 보상만 잠금 조회. 금액·종류는 DB 값만 사용
     rows = (
