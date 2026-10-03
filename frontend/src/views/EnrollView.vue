@@ -69,6 +69,15 @@
               >
                 {{ row.enrolled ? "이어하기" : "수강" }}
               </button>
+              <button
+                v-if="row.enrolled"
+                type="button"
+                class="sq-btn-cancel"
+                :disabled="pending.has(row.id)"
+                @click.stop="handleCancel(row)"
+              >
+                수강취소
+              </button>
 
               <div v-if="expanded.has(row.id)" class="sq-lecture-detail">
                 <p><strong>설명</strong> {{ row.detail.summary }}</p>
@@ -124,6 +133,15 @@
                     @click.stop="handleEnroll(child)"
                   >
                     {{ child.enrolled ? "이어하기" : "수강" }}
+                  </button>
+                  <button
+                    v-if="child.enrolled"
+                    type="button"
+                    class="sq-btn-cancel"
+                    :disabled="pending.has(child.id)"
+                    @click.stop="handleCancel(child)"
+                  >
+                    수강취소
                   </button>
 
                   <div v-if="expanded.has(child.id)" class="sq-lecture-detail">
@@ -218,6 +236,22 @@ async function handleEnroll(item) {
     await enrollStore.enroll(item.id);
   } catch (error) {
     errorMessage.value = getErrorMessage(error, "수강신청에 실패했습니다.");
+  } finally {
+    pending.delete(item.id);
+  }
+}
+
+// 수강 중인 과목 취소 (확인 후 DELETE)
+async function handleCancel(item) {
+  if (!item.enrolled || pending.has(item.id)) return;
+  if (!window.confirm(`'${item.title}' 수강을 취소할까요?\n학습 진도는 보존되어 다시 수강하면 이어서 진행됩니다.`)) return;
+
+  errorMessage.value = "";
+  pending.add(item.id);
+  try {
+    await enrollStore.cancel(item.id);
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error, "수강취소에 실패했습니다.");
   } finally {
     pending.delete(item.id);
   }
@@ -368,6 +402,28 @@ async function handleEnroll(item) {
   cursor: not-allowed;
 }
 
+.sq-btn-cancel {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border: 1px solid var(--sq-card-border);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+  color: var(--sq-text-sub);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sq-btn-cancel:hover:not(:disabled) {
+  border-color: var(--sq-badge-absent-text);
+  color: var(--sq-badge-absent-text);
+}
+
+.sq-btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .sq-enroll__error {
   margin: 0 0 12px;
   font-size: 14px;
@@ -453,7 +509,8 @@ async function handleEnroll(item) {
     align-items: stretch;
   }
 
-  .sq-btn-enroll {
+  .sq-btn-enroll,
+  .sq-btn-cancel {
     align-self: flex-start;
   }
 

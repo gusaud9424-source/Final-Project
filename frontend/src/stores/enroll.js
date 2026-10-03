@@ -146,5 +146,21 @@ export const useEnrollStore = defineStore("enroll", () => {
     }
   }
 
-  return { items, fetchEnrollments, enroll };
+  // DELETE 성공(또는 404 이미 취소됨) 시 enrolled=false, 그 외 에러는 호출부로 전달
+  async function cancel(id) {
+    const item = items.value.find((i) => i.id === id);
+    if (!item) return;
+    try {
+      await client.delete(`/enrollments/${encodeURIComponent(id)}`);
+      item.enrolled = false;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        item.enrolled = false;
+        return;
+      }
+      throw error;
+    }
+  }
+
+  return { items, fetchEnrollments, enroll, cancel };
 });
