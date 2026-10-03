@@ -169,7 +169,10 @@
             </span>
             <pre class="sq-practice__output">{{ lastResult.output }}</pre>
             <p v-if="lastResult.rewarded" class="sq-practice__reward">
-              보상 대기 중: XP +{{ lastResult.xp }} · 포인트 +{{ lastResult.points }} — 과목 상세의 미션 탭에서 받으세요
+              보상 대기 중:
+              <template v-if="lastResult.xp">경험치 +{{ lastResult.xp }}</template>
+              <template v-else>포인트 +{{ lastResult.points }}</template>
+              — 상단 보물상자에서 받으세요
             </p>
             <p v-else-if="lastResult.success" class="sq-practice__reward sq-practice__reward--muted">
               이미 실습 보상을 받은 과목입니다.

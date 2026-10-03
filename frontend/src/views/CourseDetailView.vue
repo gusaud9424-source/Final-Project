@@ -637,13 +637,15 @@ onMounted(async () => {
   flex: 1;
   min-width: 0;
   margin: 0;
-  padding: 14px;
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
   border: 1px solid var(--sq-card-border);
   border-radius: var(--sq-radius-none);
   background: var(--sq-color-accent-subtle);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
-  color: var(--sq-text-sub);
+  color: var(--sq-text-body);
 }
 
 .sq-mission-reward {

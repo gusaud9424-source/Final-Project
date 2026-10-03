@@ -22,8 +22,8 @@ POINT_RANGES = {
     "mission": (10, 30),
 }
 
-# 미션(방어 퀴즈) 보상 종류: 초급=경험치, 중급·고급=포인트
-MISSION_REWARD_TYPE = {
+# 과목별 단일 보상 종류 (실습·미션 공통): 초급=경험치, 중급·고급=포인트
+COURSE_REWARD_TYPE = {
     "command-injection": "xp",
     "xss-reflected": "xp",
     "xss-dom": "xp",
@@ -61,14 +61,12 @@ def points_balance(user_id):
 
 
 def _reward_types(source, course_slug):
-    """source별 생성할 보상 종류. 실습=XP+포인트, 미션=과목별 고정 1종"""
-    if source == "practice":
-        return ["xp", "point"]
-    if source == "mission":
-        reward_type = MISSION_REWARD_TYPE.get(course_slug)
+    """source별 생성할 보상 종류. 실습·미션 모두 과목별 고정 1종(경험치 또는 포인트)."""
+    if source in ("practice", "mission"):
+        reward_type = COURSE_REWARD_TYPE.get(course_slug)
         if not reward_type:
             # 잘못된 값으로 지급되지 않도록 미등록 과목은 보상을 만들지 않는다
-            current_app.logger.warning("mission reward type not defined for course: %s", course_slug)
+            current_app.logger.warning("reward type not defined for course: %s", course_slug)
             return []
         return [reward_type]
     raise ValueError(f"unknown reward source: {source}")

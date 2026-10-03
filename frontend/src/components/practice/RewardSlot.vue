@@ -88,7 +88,7 @@ function labelOf(type) {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 14px 10px;
+  padding: 12px 10px;
   border: 1px solid var(--sq-card-border);
   border-radius: var(--sq-radius-none);
   background: var(--sq-bg-card);

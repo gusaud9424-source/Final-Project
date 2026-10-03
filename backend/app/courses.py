@@ -157,12 +157,15 @@ def run_practice(slug):
     if result.success:
         mark_task_complete(user.id, course.id, "practice")
         # 실습 보상은 XP·포인트 2종, 미수령 상태로 생성(수령은 과목 상세 > 미션 탭에서)
-        rows = roll_pending(user.id, "practice", f"{course.title} 실습", ref=f"practice:{course.slug}")
+        rows = roll_pending(
+            user.id, "practice", f"{course.title} 실습", ref=f"practice:{course.slug}", course_slug=course.slug
+        )
         if rows:
+            # 실습 보상도 과목별 1종(경험치 또는 포인트). 해당 종류만 금액을 채운다.
             amounts = {row.type: row.amount for row in rows}
             rewarded = True
-            xp_amount = amounts["xp"]
-            point_amount = amounts["point"]
+            xp_amount = amounts.get("xp")
+            point_amount = amounts.get("point")
 
     return jsonify(
         success=result.success,
