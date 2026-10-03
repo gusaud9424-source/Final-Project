@@ -35,6 +35,7 @@ def create_app():
     from .profile import bp as profile_bp
     from .rewards import bp as rewards_bp
     from .attendance import bp as attendance_bp
+    from .admin import bp as admin_bp
     from .cli import register_cli
 
     app.register_blueprint(main_bp)
@@ -45,6 +46,7 @@ def create_app():
     app.register_blueprint(profile_bp)
     app.register_blueprint(rewards_bp)
     app.register_blueprint(attendance_bp)
+    app.register_blueprint(admin_bp)
     register_cli(app)
 
     @app.errorhandler(CSRFError)
