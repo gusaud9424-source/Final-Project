@@ -1,4 +1,4 @@
-"""관리자 전용 API — 회원관리(목록·임시 비밀번호 발급·삭제) · 관리자 비밀번호 변경
+"""관리자 전용 API — 수강생 진도 현황 · 회원관리(목록·임시 비밀번호 발급·삭제) · 관리자 비밀번호 변경
 
 관리자 기능은 실습 페이지가 아니므로 표준 보안 규칙을 따른다.
 - 전역 CSRFProtect (모든 비-GET 요청)
@@ -8,6 +8,8 @@
 """
 import secrets
 import string
+from collections import defaultdict
+from datetime import datetime, timedelta
 
 import bcrypt
 from flask import Blueprint, current_app, jsonify, request
@@ -15,7 +17,9 @@ from sqlalchemy import func
 
 from . import db, limiter
 from .models import (
+    TASK_KEYS,
     AttendanceSession,
+    Course,
     Enrollment,
     PointLedger,
     Reward,
@@ -24,7 +28,7 @@ from .models import (
     VerificationCode,
     XpLedger,
 )
-from .progress import current_user
+from .progress import TASK_TOTAL, current_user
 
 bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 
@@ -191,3 +195,170 @@ def change_admin_password():
     db.session.commit()
     _audit(admin, "change_own_password")
     return jsonify(message="비밀번호가 변경되었습니다.")
+
+
+# ── 수강생 진도 현황 ─────────────────────────────────────────────
+
+STALL_DAYS = 7  # 마지막 활동 후 이 기간이 지나면 "정체"
+ACTIVE_DAYS = 7  # 요약 카드 "최근 7일 학습" 기준
+DIFFICULTY_ORDER = {"초급": 0, "중급": 1, "고급": 2}
+
+
+def _iso(value):
+    return value.isoformat(timespec="seconds") + "Z" if value else None
+
+
+def _student_status(enrolled_count, completed, total, last_activity, first_enrolled_at, now):
+    """완료 / 정체 / 진행중 / 미시작"""
+    if enrolled_count == 0:
+        return "미시작"
+    if total and completed >= total:
+        return "완료"
+    # 활동이 없으면 수강 시작일을 기준으로 정체 여부 판단
+    reference = last_activity or first_enrolled_at
+    if reference and now - reference > timedelta(days=STALL_DAYS):
+        return "정체"
+    if completed == 0:
+        return "미시작"
+    return "진행중"
+
+
+@bp.get("/progress")
+def progress_overview():
+    admin, error = _require_admin()
+    if error:
+        return error
+
+    now = datetime.utcnow()
+    courses = sorted(
+        Course.query.filter(Course.slug.isnot(None)).all(),
+        key=lambda c: (DIFFICULTY_ORDER.get(c.difficulty, 9), c.id),
+    )
+    course_by_id = {c.id: c for c in courses}
+    students = User.query.filter_by(role="student").order_by(User.name, User.id).all()
+    ids = [s.id for s in students]
+
+    enrollments = Enrollment.query.filter(Enrollment.user_id.in_(ids)).all() if ids else []
+    progress_rows = (
+        TaskProgress.query.filter(TaskProgress.user_id.in_(ids), TaskProgress.task_key.in_(TASK_KEYS)).all()
+        if ids
+        else []
+    )
+    points = dict(
+        db.session.query(PointLedger.user_id, func.sum(PointLedger.amount))
+        .filter(PointLedger.user_id.in_(ids))
+        .group_by(PointLedger.user_id)
+        .all()
+    ) if ids else {}
+    attendance = dict(
+        db.session.query(PointLedger.user_id, func.count(PointLedger.id))
+        .filter(PointLedger.user_id.in_(ids), PointLedger.source == "attendance")
+        .group_by(PointLedger.user_id)
+        .all()
+    ) if ids else {}
+    last_point = dict(
+        db.session.query(PointLedger.user_id, func.max(PointLedger.created_at))
+        .filter(PointLedger.user_id.in_(ids))
+        .group_by(PointLedger.user_id)
+        .all()
+    ) if ids else {}
+
+    # (user_id, course_id) → {task_key: completed_at}
+    done = defaultdict(dict)
+    last_task = {}
+    for row in progress_rows:
+        done[(row.user_id, row.course_id)][row.task_key] = row.completed_at
+        if row.completed_at and (row.user_id not in last_task or row.completed_at > last_task[row.user_id]):
+            last_task[row.user_id] = row.completed_at
+
+    enrolled_by_user = defaultdict(list)
+    for e in enrollments:
+        if e.course_id in course_by_id:
+            enrolled_by_user[e.user_id].append(e)
+
+    student_list = []
+    course_acc = {c.id: {"enrolled": 0, "percentSum": 0, "completed": 0} for c in courses}
+    funnel = {key: 0 for key in TASK_KEYS}
+    funnel_total = 0
+    active_count = 0
+
+    for s in students:
+        user_enrollments = enrolled_by_user.get(s.id, [])
+        per_course = {}
+        completed_sum = 0
+        for e in user_enrollments:
+            course = course_by_id[e.course_id]
+            steps = done.get((s.id, course.id), {})
+            completed = sum(1 for key in TASK_KEYS if key in steps)
+            percent = round(completed / TASK_TOTAL * 100)
+            completed_sum += completed
+            per_course[course.slug] = {
+                "completed": completed,
+                "total": TASK_TOTAL,
+                "percent": percent,
+                "steps": {key: _iso(steps.get(key)) for key in TASK_KEYS},
+                "enrolledAt": _iso(e.created_at),
+            }
+            acc = course_acc[course.id]
+            acc["enrolled"] += 1
+            acc["percentSum"] += percent
+            acc["completed"] += 1 if completed == TASK_TOTAL else 0
+            funnel_total += 1
+            for key in TASK_KEYS:
+                if key in steps:
+                    funnel[key] += 1
+
+        total_steps = len(user_enrollments) * TASK_TOTAL
+        overall = round(completed_sum / total_steps * 100) if total_steps else 0
+        candidates = [v for v in (last_task.get(s.id), last_point.get(s.id)) if v]
+        last_activity = max(candidates) if candidates else None
+        first_enrolled = min((e.created_at for e in user_enrollments if e.created_at), default=None)
+        if last_activity and now - last_activity <= timedelta(days=ACTIVE_DAYS):
+            active_count += 1
+
+        student_list.append({
+            "id": s.id,
+            "username": s.username,
+            "name": s.name,
+            "email": s.email,
+            "courseCount": len(user_enrollments),
+            "completedSteps": completed_sum,
+            "totalSteps": total_steps,
+            "percent": overall,
+            "lastActivity": _iso(last_activity),
+            "points": int(points.get(s.id, 0) or 0),
+            "attendanceDays": int(attendance.get(s.id, 0) or 0),
+            "status": _student_status(len(user_enrollments), completed_sum, total_steps, last_activity, first_enrolled, now),
+            "courses": per_course,
+        })
+
+    enrolled_students = [x for x in student_list if x["courseCount"]]
+    summary = {
+        "totalStudents": len(student_list),
+        "avgPercent": round(sum(x["percent"] for x in enrolled_students) / len(enrolled_students)) if enrolled_students else 0,
+        "activeLast7": active_count,
+        "stalled": sum(1 for x in student_list if x["status"] == "정체"),
+        "stallDays": STALL_DAYS,
+    }
+    course_stats = [
+        {
+            "slug": c.slug,
+            "title": c.title,
+            "difficulty": c.difficulty,
+            "icon": c.icon,
+            "enrolled": course_acc[c.id]["enrolled"],
+            "avgPercent": round(course_acc[c.id]["percentSum"] / course_acc[c.id]["enrolled"]) if course_acc[c.id]["enrolled"] else 0,
+            "completedCount": course_acc[c.id]["completed"],
+        }
+        for c in courses
+    ]
+    funnel_list = [
+        {"key": key, "count": funnel[key], "percent": round(funnel[key] / funnel_total * 100) if funnel_total else 0}
+        for key in TASK_KEYS
+    ]
+    return jsonify(
+        summary=summary,
+        courses=course_stats,
+        funnel={"total": funnel_total, "steps": funnel_list},
+        students=student_list,
+    )
