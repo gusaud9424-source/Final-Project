@@ -130,7 +130,7 @@ def practice_hints(slug):
 
 
 @bp.post("/<slug>/practice/run")
-@limiter.limit("10 per minute")
+@limiter.limit("90 per minute")  # Blind SQLi 등 반복 요청 실습을 위해 상향 (학습용 단일 사용자 기준)
 def run_practice(slug):
     user, course, error = _load_enrolled_course(slug)
     if error:
