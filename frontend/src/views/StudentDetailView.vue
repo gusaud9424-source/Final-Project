@@ -113,7 +113,7 @@
       </section>
 
       <!-- 출석 · 학습 추이 · 포인트 경로 -->
-      <section class="sq-chart-grid">
+      <section class="sq-chart-grid sq-chart-grid--middle">
         <article class="sq-card sq-panel">
           <h2 class="sq-panel__title">출석 체크판</h2>
           <ol class="sq-attendance">
@@ -893,8 +893,17 @@ watch(() => route.params.id, (id) => id && load());
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  .sq-chart-grid--progress > :nth-child(2),
-  .sq-chart-grid--bottom > :first-child {
+  /* 2열일 때 빈칸이 생기지 않도록 넓은 항목을 한 줄 전체로 배치 */
+  .sq-chart-grid--progress > :nth-child(2) {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .sq-chart-grid--middle > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .sq-chart-grid--bottom > * {
     grid-column: 1 / -1;
   }
 }

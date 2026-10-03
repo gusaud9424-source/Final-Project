@@ -146,7 +146,7 @@
                       :title="`${student.name} 학생 현황 페이지`"
                       @click.stop
                     >
-                      {{ student.name }} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                      {{ student.name }}
                     </router-link>
                     <span class="sq-table__sub">{{ student.username }}</span>
                   </td>
@@ -653,10 +653,6 @@ onMounted(async () => {
 
 .sq-table__name:hover {
   text-decoration: underline;
-}
-
-.sq-table__name .bi {
-  font-size: 11px;
 }
 
 .sq-table__sub {
