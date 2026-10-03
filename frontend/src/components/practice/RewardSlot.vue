@@ -16,12 +16,6 @@
   <div v-else-if="state.status === 'locked'" class="sq-reward sq-reward--locked">
     <i class="bi bi-gift" aria-hidden="true"></i>
     <span class="sq-reward__label">미션 완료 시 지급</span>
-    <ul class="sq-reward__items">
-      <li v-for="(item, i) in state.items" :key="i">
-        <i class="bi" :class="iconOf(item.type)" aria-hidden="true"></i>
-        {{ labelOf(item.type) }} {{ item.min }}~{{ item.max }}
-      </li>
-    </ul>
   </div>
 
   <!-- 수령 가능: 미션(방어 퀴즈)만 여기서 받는다 -->

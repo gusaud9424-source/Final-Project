@@ -142,7 +142,7 @@
           :disabled="!course.quizSetAvailable"
           @click="quizModalOpen = true"
         >
-          {{ course.quizSetAvailable ? "방어 퀴즈 풀기" : "준비 중" }}
+          {{ course.quizSetAvailable ? "퀴즈 풀기" : "준비 중" }}
         </button>
 
         <QuizSetModal
