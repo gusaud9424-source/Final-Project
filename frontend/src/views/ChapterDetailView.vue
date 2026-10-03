@@ -22,21 +22,119 @@
     >
       <template #practice>
         <template v-if="practiceSupported">
-          <form class="sq-practice__form" @submit.prevent="runPractice">
-            <div class="sq-practice__tiers" role="radiogroup" aria-label="난이도">
-              <label v-for="tier in TIERS" :key="tier.key" class="sq-practice__tier">
-                <input v-model="selectedTier" type="radio" name="tier" :value="tier.key" @change="onTierChange" />
-                <span>{{ tier.label }}</span>
-              </label>
-            </div>
+          <div class="sq-practice__tiers" role="radiogroup" aria-label="난이도">
+            <label v-for="tier in TIERS" :key="tier.key" class="sq-practice__tier">
+              <input v-model="selectedTier" type="radio" name="tier" :value="tier.key" @change="onTierChange" />
+              <span>{{ tier.label }}</span>
+            </label>
+          </div>
 
-            <label class="sq-practice__label" for="practice-input">{{ TIER_INPUT_LABEL[selectedTier] }}</label>
+          <CsrfPractice
+            v-if="isCsrf"
+            :key="slug + '-csrf'"
+            :slug="slug"
+            :tier="selectedTier"
+            @result="(data) => (lastResult = data)"
+          >
+            <template #actions>
+              <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
+                {{ hintsOpen ? "힌트 숨기기" : "힌트 보기" }}
+              </button>
+            </template>
+          </CsrfPractice>
+
+          <SqlInjectionPractice
+            v-else-if="isSql"
+            :key="slug + '-sql'"
+            :slug="slug"
+            :tier="selectedTier"
+            @result="(data) => (lastResult = data)"
+          >
+            <template #actions>
+              <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
+                {{ hintsOpen ? "힌트 숨기기" : "힌트 보기" }}
+              </button>
+            </template>
+          </SqlInjectionPractice>
+
+          <CmdInjectionPractice
+            v-else-if="isCmd"
+            :key="slug + '-cmd'"
+            :slug="slug"
+            :tier="selectedTier"
+            @result="(data) => (lastResult = data)"
+          >
+            <template #actions>
+              <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
+                {{ hintsOpen ? "힌트 숨기기" : "힌트 보기" }}
+              </button>
+            </template>
+          </CmdInjectionPractice>
+
+          <FileUploadPractice
+            v-else-if="isUpload"
+            :key="slug + '-upload'"
+            :slug="slug"
+            :tier="selectedTier"
+            @result="(data) => (lastResult = data)"
+          >
+            <template #actions>
+              <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
+                {{ hintsOpen ? "힌트 숨기기" : "힌트 보기" }}
+              </button>
+            </template>
+          </FileUploadPractice>
+
+          <BlindSqlPractice
+            v-else-if="isBlind"
+            :key="slug + '-blind'"
+            :slug="slug"
+            :tier="selectedTier"
+            @result="(data) => (lastResult = data)"
+          >
+            <template #actions>
+              <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
+                {{ hintsOpen ? "힌트 숨기기" : "힌트 보기" }}
+              </button>
+            </template>
+          </BlindSqlPractice>
+
+          <StoredXssPractice
+            v-else-if="isStored"
+            :key="slug + '-stored'"
+            :slug="slug"
+            :tier="selectedTier"
+            @result="(data) => (lastResult = data)"
+          >
+            <template #actions>
+              <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
+                {{ hintsOpen ? "힌트 숨기기" : "힌트 보기" }}
+              </button>
+            </template>
+          </StoredXssPractice>
+
+          <XssPractice
+            v-else-if="isXss"
+            :key="slug"
+            :slug="slug"
+            :tier="selectedTier"
+            @result="(data) => (lastResult = data)"
+          >
+            <template #actions>
+              <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
+                {{ hintsOpen ? "힌트 숨기기" : "힌트 보기" }}
+              </button>
+            </template>
+          </XssPractice>
+
+          <form v-else class="sq-practice__form" @submit.prevent="runPractice">
+            <label class="sq-practice__label" for="practice-input">{{ inputLabel }}</label>
             <input
               id="practice-input"
               v-model="userInput"
               type="text"
               class="sq-practice__input"
-              placeholder="검색어를 입력하세요"
+              :placeholder="inputPlaceholder"
               maxlength="200"
             />
 
@@ -98,22 +196,43 @@ import { useRoute } from "vue-router";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 import VulnerabilityPage from "@/components/common/VulnerabilityPage.vue";
+import XssPractice from "@/components/practice/XssPractice.vue";
+import BlindSqlPractice from "@/components/practice/BlindSqlPractice.vue";
+import FileUploadPractice from "@/components/practice/FileUploadPractice.vue";
+import CmdInjectionPractice from "@/components/practice/CmdInjectionPractice.vue";
+import SqlInjectionPractice from "@/components/practice/SqlInjectionPractice.vue";
+import StoredXssPractice from "@/components/practice/StoredXssPractice.vue";
+import CsrfPractice from "@/components/practice/CsrfPractice.vue";
 import { useEnrollStore } from "@/stores/enroll";
 import { useRewardStore } from "@/stores/reward";
 
 // 백엔드 PRACTICE_BUILDERS에 등록된 과목만 실습 UI를 노출한다.
-const PRACTICE_SUPPORTED_SLUGS = ["command-injection"];
+const PRACTICE_SUPPORTED_SLUGS = ["command-injection", "xss-reflected", "xss-dom", "xss-stored", "sql-injection", "sql-injection-blind", "file-upload", "csrf"];
+const XSS_SLUGS = ["xss-reflected", "xss-dom", "xss-stored"];
+// 피드백 반영: 하 → 중 → 상 순서로 학습, 마지막은 방어 코드가 적용된 "안전" 단계
 const TIERS = [
-  { key: "low", label: "Low" },
-  { key: "medium", label: "Medium" },
-  { key: "high", label: "High" },
-  { key: "impossible", label: "Impossible" },
+  { key: "low", label: "하 (Low)" },
+  { key: "medium", label: "중 (Medium)" },
+  { key: "high", label: "상 (High)" },
+  { key: "impossible", label: "안전 (Impossible)" },
 ];
-const TIER_INPUT_LABEL = {
-  low: "로그 검색어",
-  medium: "로그 검색어",
-  high: "로그 검색어",
-  impossible: "로그 검색어 (영문·숫자·.·_·- 만 허용)",
+const INPUT_LABELS = {
+  "command-injection": {
+    low: "로그 검색어",
+    medium: "로그 검색어",
+    high: "로그 검색어",
+    impossible: "로그 검색어 (영문·숫자·.·_·- 만 허용)",
+  },
+  "sql-injection": {
+    low: "조회할 사용자명",
+    medium: "조회할 사용자명",
+    high: "조회할 사용자명",
+    impossible: "조회할 사용자명 (파라미터 바인딩 적용)",
+  },
+};
+const INPUT_PLACEHOLDERS = {
+  "command-injection": "검색어를 입력하세요",
+  "sql-injection": "예: guest",
 };
 
 const route = useRoute();
@@ -127,6 +246,15 @@ const errorStatus = ref(null);
 const course = ref({});
 
 const practiceSupported = computed(() => PRACTICE_SUPPORTED_SLUGS.includes(slug));
+const isStored = slug === "xss-stored";
+const isXss = XSS_SLUGS.includes(slug) && !isStored;
+const isBlind = slug === "sql-injection-blind";
+const isUpload = slug === "file-upload";
+const isCmd = slug === "command-injection";
+const isSql = slug === "sql-injection";
+const isCsrf = slug === "csrf";
+const inputLabel = computed(() => (INPUT_LABELS[slug] || {})[selectedTier.value] || "입력값");
+const inputPlaceholder = INPUT_PLACEHOLDERS[slug] || "값을 입력하세요";
 const detail = computed(() => enrollStore.items.find((i) => i.id === slug)?.detail || null);
 
 const selectedTier = ref("low");

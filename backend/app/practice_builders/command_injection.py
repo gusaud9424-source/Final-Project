@@ -1,38 +1,42 @@
-import re
-import secrets
+"""Command Injection — DVWA 재현 (ping 도구).
 
+DVWA vulnerabilities/exec 의 low/medium/high/impossible 소스를 그대로 옮긴 필터.
+  low        : 필터 없음
+  medium     : str_replace(['&&', ';'], '', target)
+  high       : str_replace(['||','&',';','| ','-','$','(',')','`'], '', target)  (순서대로)
+  impossible : '.' 로 쪼개 4옥텟이 모두 숫자인지 검사 후에만 ping
+
+성공 판정은 DVWA에 없지만, SecuQuest 보상 연동을 위해
+"주입된 명령으로 /etc/passwd 를 읽어냈는가"(출력에 root: 포함)로 둔다.
+"""
 from .. import sandbox_client
 from .base import PracticeBuilder, PracticeResult
 
-_WHITELIST_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _MAX_INPUT_LEN = 200
 
-# Low는 필터 없음. Medium/High 모두 파이프(|)는 걸러내지 않는다 —
-# High가 더 많은 문자를 막아도 여전히 뚫리는 지점이 있다는 걸 보여주기 위한 의도적 설계.
-_BLACKLISTS = {
-    "medium": [";", "&&"],
-    "high": [";", "&&", "`", "$(", "\n", "\r"],
-}
+# DVWA high substitutions (배열 순서 그대로 — '||' 가 '| ' 보다 먼저, '|' 단독은 목록에 없음)
+_HIGH_SUBS = ["||", "&", ";", "| ", "-", "$", "(", ")", "`"]
+_MEDIUM_SUBS = ["&&", ";"]
 
 _HINTS = {
     "low": [
-        "입력값이 필터링 없이 명령어 뒤에 그대로 이어붙습니다.",
-        "셸 구분자(`;`, `&&`, `|` 등)로 원래 명령 뒤에 새 명령을 실행할 수 있습니다.",
-        "예: 검색어 자리에 `아무값 ; cat /tmp/flag.txt` 를 넣어보세요.",
+        "입력값이 `ping -c 4 ` 뒤에 그대로 붙어 셸에서 실행됩니다. 필터가 없습니다.",
+        "셸 구분자(`;`, `&&`, `|`)로 ping 뒤에 새 명령을 이어 실행할 수 있습니다.",
+        "예: 127.0.0.1; cat /etc/passwd",
     ],
     "medium": [
-        "`;` 와 `&&` 는 서버가 제거합니다.",
-        "구분자가 그 두 개뿐일까요? 파이프(`|`)를 떠올려보세요.",
-        "예: 검색어 자리에 `아무값 | cat /tmp/flag.txt` 를 넣어보세요.",
+        "서버가 `&&` 와 `;` 를 제거합니다. 그 둘만 막습니다.",
+        "파이프(`|`)는 걸러지지 않습니다.",
+        "예: 127.0.0.1 | cat /etc/passwd",
     ],
     "high": [
-        "`;`, `&&`, 백틱, `$()`, 개행까지 막혔습니다.",
-        "그런데 필터 목록에 파이프(`|`)는 있었나요?",
-        "예: 검색어 자리에 `아무값 | cat /tmp/flag.txt` 를 넣어보세요.",
+        "이번엔 `||`, `&`, `;`, `| `(파이프+공백), `-`, `$`, `(`, `)`, 백틱을 제거합니다.",
+        "목록을 자세히 보세요. `| `(파이프 뒤 공백)은 막지만 공백 없는 `|` 는 빠져 있습니다.",
+        "예: 127.0.0.1|cat /etc/passwd   (파이프 뒤 공백 없이)",
     ],
     "impossible": [
-        "이 티어는 화이트리스트 검증(영숫자·`.`·`_`·`-`만 허용) 후 셸을 거치지 않고 인자 배열로 바로 실행합니다.",
-        "특수문자가 입력 단계에서 거부되므로 셸이 해석할 메타문자 자체가 전달되지 않습니다.",
+        "입력을 `.` 으로 쪼개 4개의 숫자 옥텟인지 검사한 뒤에만 ping 합니다.",
+        "숫자 4마디(예: 127.0.0.1)가 아니면 거부되므로 셸 메타문자를 넣을 수 없습니다.",
     ],
 }
 
@@ -44,47 +48,47 @@ class CommandInjectionBuilder(PracticeBuilder):
         if difficulty not in self.difficulties:
             return "지원하지 않는 난이도입니다."
         if not isinstance(user_input, str) or not user_input.strip():
-            return "검색어를 입력하세요."
+            return "IP 주소를 입력하세요."
         if len(user_input) > _MAX_INPUT_LEN:
-            return f"검색어는 {_MAX_INPUT_LEN}자 이내로 입력하세요."
-        if difficulty == "impossible" and not _WHITELIST_RE.match(user_input):
-            return "영문·숫자·`.`·`_`·`-`만 허용됩니다."
+            return f"입력은 {_MAX_INPUT_LEN}자 이내로 입력하세요."
         return None
 
     def hints(self, difficulty):
         return list(_HINTS.get(difficulty, []))
 
+    def _apply_filter(self, difficulty, target):
+        if difficulty == "medium":
+            for token in _MEDIUM_SUBS:
+                target = target.replace(token, "")
+        elif difficulty == "high":
+            for token in _HIGH_SUBS:
+                target = target.replace(token, "")
+        return target
+
     def run(self, difficulty, user_input):
         if difficulty == "impossible":
-            result = sandbox_client.execute(
-                {"mode": "argv", "argv": ["grep", user_input, "/etc/hostname"], "timeout": 3}
-            )
-            return PracticeResult(output=self._format_output(result), success=False)
+            # DVWA impossible: '.' 4마디 + 모두 숫자
+            target = user_input.replace("\\", "")
+            octets = target.split(".")
+            if len(octets) == 4 and all(o.isdigit() for o in octets):
+                target = ".".join(octets)
+                command = f"ping -c 4 {target}"
+                result = sandbox_client.execute({"mode": "shell", "command": command, "timeout": 4})
+                return PracticeResult(output=self._format_output(result), success=False)
+            return PracticeResult(output="ERROR: You have entered an invalid IP.", success=False)
 
-        flag_token = secrets.token_hex(16)
-        filtered_input = self._apply_filter(difficulty, user_input)
-        # flag 심기 + 로그 준비 + 취약한 검색 실행을 한 요청으로 묶는다.
-        # sandbox runner가 /tmp 를 요청 전/후로 초기화하므로, 두 번의 요청에 걸쳐서는
-        # flag 파일이 생존할 수 없다 (reset_state 상호작용).
-        command = (
-            f"echo {flag_token} > /tmp/flag.txt && "
-            f"echo 'search log ready' > /tmp/app.log && "
-            f"grep {filtered_input} /tmp/app.log"
-        )
-        result = sandbox_client.execute({"mode": "shell", "command": command, "timeout": 3})
+        target = self._apply_filter(difficulty, user_input)
+        command = f"ping -c 4 {target}"
+        result = sandbox_client.execute({"mode": "shell", "command": command, "timeout": 4})
         stdout = result.get("stdout") or ""
-        success = flag_token in stdout
+        # 주입으로 /etc/passwd 를 읽어냈으면 성공
+        success = "root:" in stdout
         return PracticeResult(output=self._format_output(result), success=success)
-
-    def _apply_filter(self, difficulty, user_input):
-        filtered = user_input
-        for token in _BLACKLISTS.get(difficulty, []):
-            filtered = filtered.replace(token, "")
-        return filtered
 
     def _format_output(self, result):
         if result.get("timed_out"):
-            return "(실행 실패 또는 시간 초과)"
-        stdout = (result.get("stdout") or "").strip()
-        stderr = (result.get("stderr") or "").strip()
-        return stdout or stderr or "(출력 없음)"
+            return "(실행 시간 초과)"
+        stdout = (result.get("stdout") or "").rstrip()
+        stderr = (result.get("stderr") or "").rstrip()
+        parts = [p for p in (stdout, stderr) if p]
+        return "\n".join(parts) if parts else "(출력 없음)"

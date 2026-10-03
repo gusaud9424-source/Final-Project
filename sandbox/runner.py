@@ -3,6 +3,7 @@ import os
 import resource
 import shutil
 import socket
+import sqlite3
 import subprocess
 
 SOCK_PATH = "/ipc/sandbox.sock"
@@ -35,10 +36,47 @@ def _limit_child_resources():
     resource.setrlimit(resource.RLIMIT_FSIZE, (1_000_000, 1_000_000))
 
 
+def _run_sqlite(req):
+    """실습용 격리 SQLite 실행.
+    - 메모리 DB에 가짜 회원 테이블을 매번 새로 만든다(요청 간 상태 공유 없음).
+    - admin 의 secret 에 flag 를 심는다. 주입으로 이 값을 끌어내면 성공.
+    - 단일 statement 만 실행한다(sqlite3 execute 는 다중 구문을 거부) → 파괴적 스택 쿼리 차단.
+    """
+    flag = str(req.get("flag") or "")
+    query = req.get("query") or ""
+    params = req.get("params")
+    init = req.get("init")  # 선택: 커스텀 스키마/시드 SQL 목록. 없으면 기본 users 테이블.
+    try:
+        con = sqlite3.connect(":memory:")
+        if init:
+            for stmt in init:
+                con.execute(stmt)
+        else:
+            con.execute("CREATE TABLE users (id INTEGER, username TEXT, secret TEXT)")
+            con.executemany(
+                "INSERT INTO users VALUES (?,?,?)",
+                [(1, "guest", "welcome-guest"), (2, "admin", flag), (3, "staff", "onboarding-staff")],
+            )
+        cur = con.execute(query, params) if params is not None else con.execute(query)
+        rows = cur.fetchall()
+        con.close()
+        serial_rows = [["" if c is None else str(c) for c in row] for row in rows][:50]
+        lines = [" | ".join(r) for r in serial_rows]
+        body = "\n".join(lines) if lines else "(조회 결과 없음)"
+        return {"stdout": body[:MAX_STDOUT], "stderr": "", "exit_code": 0, "timed_out": False, "rows": serial_rows}
+    except Exception as exc:  # noqa: BLE001 - 주입 과정에서 문법 오류가 흔하므로 메시지를 그대로 교육용으로 노출
+        return {"stdout": "", "stderr": f"SQL 오류: {exc}"[:MAX_STDERR], "exit_code": 1, "timed_out": False}
+
+
 def run_request(req):
     reset_state()
     timeout = min(req.get("timeout_sec") or MAX_TIMEOUT_SEC, MAX_TIMEOUT_SEC)
     mode = req.get("mode")
+
+    if mode == "sqlite":
+        result = _run_sqlite(req)
+        reset_state()
+        return result
 
     if mode == "shell":
         args = ["/bin/sh", "-c", req.get("command", "")]
