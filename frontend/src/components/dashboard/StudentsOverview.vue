@@ -140,7 +140,14 @@
                   @keydown.enter="toggle(student.id)"
                 >
                   <td>
-                    <span class="sq-table__name">{{ student.name }}</span>
+                    <router-link
+                      :to="`/admin/students/${student.id}`"
+                      class="sq-table__name"
+                      :title="`${student.name} 학생 현황 페이지`"
+                      @click.stop
+                    >
+                      {{ student.name }} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                    </router-link>
                     <span class="sq-table__sub">{{ student.username }}</span>
                   </td>
                   <td v-for="course in courses" :key="course.slug" class="sq-table__cell">
@@ -640,6 +647,16 @@ onMounted(async () => {
 .sq-table__name {
   display: block;
   font-weight: 600;
+  color: var(--sq-text-link);
+  text-decoration: none;
+}
+
+.sq-table__name:hover {
+  text-decoration: underline;
+}
+
+.sq-table__name .bi {
+  font-size: 11px;
 }
 
 .sq-table__sub {

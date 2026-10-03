@@ -45,6 +45,11 @@ const routes = [
     component: () => import("@/views/AdminView.vue"),
     meta: { requiresAdmin: true },
   },
+  {
+    path: "/admin/students/:id",
+    component: () => import("@/views/StudentDetailView.vue"),
+    meta: { requiresAdmin: true },
+  },
   { path: "/resources", component: () => import("@/views/ResourcesView.vue") },
   { path: "/:pathMatch(.*)*", component: () => import("@/views/NotFoundView.vue") },
 ];
