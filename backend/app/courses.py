@@ -16,7 +16,7 @@ from .progress import (
     progress_summary,
     serialize_datetime,
 )
-from .rewards import LEDGER_MODELS, RANGES, _apply_claim, _balance, _reward_types, roll_pending
+from .rewards import COURSE_REWARD_TYPE, LEDGER_MODELS, RANGES, _apply_claim, _balance, _reward_types, roll_pending
 
 bp = Blueprint("courses", __name__, url_prefix="/api/v1/courses")
 
@@ -329,22 +329,23 @@ def _task_reward_state(user_id, course, task_key):
         return {"status": "none", "items": []}
     ref = f"{source}:{course.slug}"
 
+    # 과목별 보상 종류는 1종(경험치 또는 포인트). 구버전 데이터로 2종이 있어도 1종만 노출한다.
+    canonical = COURSE_REWARD_TYPE.get(course.slug)
     rows = Reward.query.filter_by(user_id=user_id, source=source, ref=ref).order_by(Reward.type).all()
-    if rows:
-        pending = any(r.claimed_at is None for r in rows)
+    shown = [r for r in rows if r.type == canonical] or rows
+    if shown:
+        pending = any(r.claimed_at is None for r in shown)
         return {
             "status": "pending" if pending else "claimed",
-            "items": [{"type": r.type, "amount": r.amount, "claimed": r.claimed_at is not None} for r in rows],
+            "items": [{"type": r.type, "amount": r.amount, "claimed": r.claimed_at is not None} for r in shown],
         }
 
-    # 보물상자 도입 전 자동 지급된 기록(원장에 직접 기록)도 수령 완료로 표시
-    legacy = []
-    for reward_type, model in LEDGER_MODELS.items():
+    # 보물상자 도입 전 자동 지급된 기록(원장에 직접 기록)도 수령 완료로 표시 (1종만)
+    model = LEDGER_MODELS.get(canonical)
+    if model:
         row = model.query.filter_by(user_id=user_id, source=source, ref=ref).first()
         if row:
-            legacy.append({"type": reward_type, "amount": row.amount, "claimed": True})
-    if legacy:
-        return {"status": "claimed", "items": legacy}
+            return {"status": "claimed", "items": [{"type": canonical, "amount": row.amount, "claimed": True}]}
 
     # 아직 달성 전: 받을 보상 종류와 범위 미리보기
     return {

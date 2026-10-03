@@ -58,3 +58,42 @@ def register_cli(app):
         user.password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
         db.session.commit()
         click.echo(f"[{user.role}] {username} 비밀번호를 변경했습니다.")
+
+    @app.cli.command("dedupe-rewards")
+    @click.option("--yes", is_flag=True, help="지정 시 실제 삭제. 없으면 삭제 대상만 출력")
+    def dedupe_rewards(yes):
+        """과목 보상을 과목별 1종(경험치/포인트)으로 정리.
+
+        구버전에서 실습 보상이 경험치+포인트 2종으로 지급된 데이터를
+        과목별 정식 1종만 남기고 나머지(Reward·원장)를 삭제한다.
+        """
+        from .rewards import COURSE_REWARD_TYPE, LEDGER_MODELS
+
+        sources = ("concept", "practice", "mission")
+        removed_rewards = 0
+        removed_ledger = 0
+
+        for slug, canonical in COURSE_REWARD_TYPE.items():
+            non_canonical = [t for t in ("xp", "point") if t != canonical]
+            for source in sources:
+                ref = f"{source}:{slug}"
+                # 보물상자(Reward) 비정식 종류 제거
+                q = Reward.query.filter(
+                    Reward.ref == ref, Reward.type.in_(non_canonical)
+                )
+                removed_rewards += q.count()
+                if yes:
+                    q.delete(synchronize_session=False)
+                # 원장 비정식 종류 제거
+                for t in non_canonical:
+                    model = LEDGER_MODELS[t]
+                    lq = model.query.filter_by(source=source, ref=ref)
+                    removed_ledger += lq.count()
+                    if yes:
+                        lq.delete(synchronize_session=False)
+
+        if yes:
+            db.session.commit()
+            click.echo(f"정리 완료: 보상 {removed_rewards}행, 원장 {removed_ledger}행 삭제.")
+        else:
+            click.echo(f"[미리보기] 삭제 대상 — 보상 {removed_rewards}행, 원장 {removed_ledger}행. 실제 삭제는 --yes.")
