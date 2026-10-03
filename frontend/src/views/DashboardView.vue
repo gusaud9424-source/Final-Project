@@ -19,9 +19,12 @@
           }}
         </p>
       </div>
-      <router-link v-if="!authStore.isAdmin" to="/chapters" class="sq-dashboard__cta">
-        과목 선택하러 가기
-      </router-link>
+      <div v-if="!authStore.isAdmin" class="sq-dashboard__head-actions">
+        <button type="button" class="sq-dashboard__attendance-btn" @click="openAttendance">
+          <i class="bi bi-calendar-check" aria-hidden="true"></i> 출석 체크
+        </button>
+        <router-link to="/chapters" class="sq-dashboard__cta">과목 선택하러 가기</router-link>
+      </div>
     </div>
 
     <StudentsOverview v-if="authStore.isAdmin" />
@@ -105,6 +108,8 @@
         </div>
       </template>
     </template>
+
+    <AttendanceBoard v-if="attendanceOpen" @close="attendanceOpen = false" />
   </div>
 </template>
 
@@ -115,8 +120,26 @@ import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 import { useAuthStore } from "@/stores/auth";
 import StudentsOverview from "@/components/dashboard/StudentsOverview.vue";
+import AttendanceBoard from "@/components/dashboard/AttendanceBoard.vue";
+import { useProfileStore } from "@/stores/profile";
 
 const authStore = useAuthStore();
+const profileStore = useProfileStore();
+const attendanceOpen = ref(false);
+
+async function openAttendance() {
+  attendanceOpen.value = true;
+}
+
+async function checkAttendance() {
+  try {
+    const { data } = await client.get("/attendance");
+    profileStore.points = data.points;
+    if (data.canClaimToday) attendanceOpen.value = true;
+  } catch {
+    // 출석 조회 실패는 대시보드 로딩을 막지 않는다
+  }
+}
 const router = useRouter();
 
 const loading = ref(true);
@@ -137,6 +160,7 @@ onMounted(async () => {
     const { data } = await client.get("/dashboard");
     summary.value = data.summary;
     courses.value = data.courses;
+    checkAttendance();
   } catch (error) {
     errorMessage.value = getErrorMessage(error, "대시보드 정보를 불러오지 못했습니다.");
   } finally {
@@ -182,6 +206,29 @@ onMounted(async () => {
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.sq-dashboard__head-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sq-dashboard__attendance-btn {
+  padding: 12px 18px;
+  border: 1px solid var(--sq-color-accent);
+  border-radius: var(--sq-radius-none);
+  background: transparent;
+  color: var(--sq-color-accent);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sq-dashboard__attendance-btn:hover {
+  background: var(--sq-color-accent-subtle);
 }
 
 .sq-dashboard__status {

@@ -122,6 +122,7 @@
         <QuizSetModal
           v-if="quizModalOpen"
           :slug="slug"
+          :title="course.title"
           @close="quizModalOpen = false"
           @finished="onQuizFinished"
         />
