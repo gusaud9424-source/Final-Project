@@ -19,7 +19,7 @@
     <ul class="sq-reward__items">
       <li v-for="(item, i) in state.items" :key="i">
         <i class="bi" :class="iconOf(item.type)" aria-hidden="true"></i>
-        {{ labelOf(item.type) }}
+        {{ labelOf(item.type) }} {{ item.min }}~{{ item.max }} (랜덤)
       </li>
     </ul>
   </div>
