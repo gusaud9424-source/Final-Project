@@ -160,13 +160,66 @@ def list_pending():
     if not user:
         return jsonify(message="로그인이 필요합니다."), 401
 
+    # 보물상자에는 미션(방어 퀴즈) 보상을 제외한 나머지만 모은다.
+    # 미션 보상은 과목 상세 > 미션 탭에서만 수령한다.
     rows = (
         Reward.query.filter_by(user_id=user.id, claimed_at=None)
+        .filter(Reward.source != "mission")
         .order_by(Reward.created_at.desc(), Reward.id.desc())
         .all()
     )
     return jsonify(items=[serialize_reward(row) for row in rows], count=len(rows))
 
 
-# 보상 수령은 과목 상세 > 미션 탭에서만 가능하다 (courses.py 의 /<slug>/rewards/<task>/claim).
-# 헤더 보물상자의 개별·일괄 수령 API(/rewards/<id>/claim, /rewards/claim-all)는 제거했다.
+@bp.post("/<int:reward_id>/claim")
+@limiter.limit("30 per minute")
+def claim_reward(reward_id):
+    """보물상자 개별 수령 — 미션(방어 퀴즈) 보상은 여기서 받지 않는다(미션 탭 전용)."""
+    user = current_user()
+    if not user:
+        return jsonify(message="로그인이 필요합니다."), 401
+
+    reward = Reward.query.filter_by(id=reward_id, user_id=user.id).with_for_update().first()
+    if not reward:
+        db.session.rollback()
+        return jsonify(message="존재하지 않는 보상입니다."), 404
+    if reward.source == "mission":
+        db.session.rollback()
+        return jsonify(message="미션 보상은 과목의 미션 탭에서 받으세요."), 400
+    if reward.claimed_at:
+        db.session.rollback()
+        return jsonify(message="이미 받은 보상입니다."), 409
+
+    _apply_claim(reward)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(message="이미 받은 보상입니다."), 409
+
+    return jsonify(claimed=[serialize_reward(reward)], profile=_balance(user.id))
+
+
+@bp.post("/claim-all")
+@limiter.limit("5 per minute")
+def claim_all():
+    """보물상자 일괄 수령 — 미션 보상은 제외한다."""
+    user = current_user()
+    if not user:
+        return jsonify(message="로그인이 필요합니다."), 401
+
+    rewards = (
+        Reward.query.filter_by(user_id=user.id, claimed_at=None)
+        .filter(Reward.source != "mission")
+        .with_for_update()
+        .all()
+    )
+    for reward in rewards:
+        _apply_claim(reward)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(message="보상 수령 중 충돌이 발생했습니다. 다시 시도하세요."), 409
+
+    return jsonify(claimed=[serialize_reward(reward) for reward in rewards], profile=_balance(user.id))

@@ -110,32 +110,26 @@
 
         <ul class="sq-mission-list">
           <li v-for="(task, index) in tasks" :key="task.key" class="sq-mission-card">
-            <div class="sq-mission-card__body">
-              <div class="sq-mission-card__head">
-                <span class="sq-badge sq-badge--round">{{ index + 1 }}회차</span>
-                <span class="sq-mission-card__title">{{ missionInfo(task.key).title }}</span>
-                <span class="sq-badge" :class="task.completed ? 'sq-badge--success' : 'sq-badge--round'">
-                  {{ task.completed ? "완료" : "미완료" }}
-                </span>
-              </div>
-              <p class="sq-mission-card__desc">{{ missionInfo(task.key).desc }}</p>
-              <button
-                v-if="!task.completed && TASK_ACTION[task.key]"
-                type="button"
-                class="sq-mission-card__action"
-                @click="TASK_ACTION[task.key].handler()"
-              >
-                {{ TASK_ACTION[task.key].label }} <i class="bi bi-arrow-right" aria-hidden="true"></i>
-              </button>
+            <div class="sq-mission-card__head">
+              <span class="sq-badge sq-badge--round">{{ index + 1 }}회차</span>
+              <span class="sq-mission-card__title">{{ missionInfo(task.key).title }}</span>
+              <span class="sq-badge" :class="task.completed ? 'sq-badge--success' : 'sq-badge--round'">
+                {{ task.completed ? "완료" : "미완료" }}
+              </span>
             </div>
 
-            <!-- 오른쪽: 보상 영역 (미션 탭에서만 수령) -->
-            <div class="sq-mission-reward">
-              <RewardSlot
-                :state="rewardState(task.key)"
-                :busy="rewardStore.claiming"
-                @claim="claimReward(task.key)"
-              />
+            <!-- 미션 설명(왼쪽) + 보상(오른쪽), 높이·간격 맞춤 -->
+            <div class="sq-mission-card__row">
+              <p class="sq-mission-card__desc">{{ missionInfo(task.key).desc }}</p>
+              <div class="sq-mission-reward">
+                <RewardSlot
+                  :state="rewardState(task.key)"
+                  :claimable="task.key === 'defense'"
+                  :task-completed="task.completed"
+                  :busy="rewardStore.claiming"
+                  @claim="claimReward(task.key)"
+                />
+              </div>
             </div>
           </li>
         </ul>
@@ -214,7 +208,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 import { useEnrollStore } from "@/stores/enroll";
@@ -236,7 +230,6 @@ const INFO_FIELDS = [
 const DIFFICULTY_TONE = { 초급: "success", 중급: "warning", 고급: "danger" };
 
 const route = useRoute();
-const router = useRouter();
 const enrollStore = useEnrollStore();
 const rewardStore = useRewardStore();
 const slug = route.params.slug;
@@ -255,12 +248,6 @@ const rewardMessage = ref("");
 // task_key → { status, items } (서버 /courses/<slug>/rewards)
 const rewards = ref({});
 let conceptRequested = false;
-
-const TASK_ACTION = {
-  concept: { label: "과목 정보 보기", handler: () => selectTab("info") },
-  practice: { label: "실습 하러 가기", handler: () => router.push(`/chapters/${slug}`) },
-  defense: { label: "퀴즈 풀기", handler: () => (quizModalOpen.value = true) },
-};
 
 const guide = computed(() => COURSE_GUIDES[slug] || null);
 const detail = computed(() => enrollStore.items.find((i) => i.id === slug)?.detail || null);
@@ -315,6 +302,8 @@ function selectTab(key) {
 }
 
 async function claimReward(taskKey) {
+  // 미션 탭에서는 방어 퀴즈(mission) 보상만 수령한다. 실습 보상은 보물상자에서.
+  if (taskKey !== "defense") return;
   rewardMessage.value = "";
   try {
     await rewardStore.claimTask(slug, taskKey);
@@ -617,20 +606,12 @@ onMounted(async () => {
 
 .sq-mission-card {
   display: flex;
-  align-items: stretch;
-  gap: 16px;
+  flex-direction: column;
+  gap: 12px;
   padding: 16px;
   border: 1px solid var(--sq-card-border);
   border-radius: var(--sq-radius-none);
   background: var(--sq-bg-card);
-}
-
-.sq-mission-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .sq-mission-card__head {
@@ -645,40 +626,29 @@ onMounted(async () => {
   color: var(--sq-text-main);
 }
 
+/* 설명(왼쪽) + 보상(오른쪽): 같은 높이로 정렬 */
+.sq-mission-card__row {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+}
+
 .sq-mission-card__desc {
+  flex: 1;
+  min-width: 0;
   margin: 0;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--sq-card-border);
   border-radius: var(--sq-radius-none);
-  background: var(--sq-bg-page, var(--sq-color-accent-subtle));
+  background: var(--sq-color-accent-subtle);
   font-size: 13px;
   line-height: 1.6;
   color: var(--sq-text-sub);
 }
 
-.sq-mission-card__action {
-  align-self: flex-start;
-  padding: 6px 14px;
-  border: 1px solid var(--sq-color-accent);
-  border-radius: var(--sq-radius-none);
-  background: transparent;
-  color: var(--sq-color-accent);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.sq-mission-card__action:hover {
-  background: var(--sq-color-accent-subtle);
-}
-
 .sq-mission-reward {
   flex: 0 0 200px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-left: 1px solid var(--sq-card-border);
-  padding-left: 16px;
 }
 
 .sq-mission-quiz-btn {
@@ -742,16 +712,12 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .sq-mission-card {
+  .sq-mission-card__row {
     flex-direction: column;
   }
 
   .sq-mission-reward {
     flex-basis: auto;
-    border-left: none;
-    border-top: 1px solid var(--sq-card-border);
-    padding-left: 0;
-    padding-top: 12px;
   }
 }
 </style>

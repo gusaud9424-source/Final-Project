@@ -23,6 +23,32 @@ export const useRewardStore = defineStore("reward", () => {
     profileStore.points = profile.points;
   }
 
+  // 보물상자 개별 수령 (미션 외 보상)
+  async function claim(id) {
+    if (claiming.value) return;
+    claiming.value = true;
+    try {
+      const { data } = await client.post(`/rewards/${id}/claim`);
+      items.value = items.value.filter((item) => item.id !== id);
+      applyProfile(data.profile);
+    } finally {
+      claiming.value = false;
+    }
+  }
+
+  // 보물상자 일괄 수령 (미션 외 보상)
+  async function claimAll() {
+    if (claiming.value || !items.value.length) return;
+    claiming.value = true;
+    try {
+      const { data } = await client.post("/rewards/claim-all");
+      items.value = [];
+      applyProfile(data.profile);
+    } finally {
+      claiming.value = false;
+    }
+  }
+
   function reset() {
     items.value = [];
   }
@@ -46,5 +72,15 @@ export const useRewardStore = defineStore("reward", () => {
     }
   }
 
-  return { items, count, claiming, fetchPending, fetchCourseRewards, claimTask, reset };
+  return {
+    items,
+    count,
+    claiming,
+    fetchPending,
+    claim,
+    claimAll,
+    fetchCourseRewards,
+    claimTask,
+    reset,
+  };
 });
