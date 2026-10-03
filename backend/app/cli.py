@@ -40,3 +40,21 @@ def register_cli(app):
             query.delete(synchronize_session=False)
         db.session.commit()
         click.echo("초기화 완료.")
+
+    @app.cli.command("set-password")
+    @click.option("--username", required=True, help="대상 계정 아이디 (예: admin)")
+    @click.password_option("--password", prompt="새 비밀번호", confirmation_prompt="새 비밀번호 확인",
+                           help="생략 시 화면에 표시되지 않는 입력창으로 묻는다")
+    def set_password(username, password):
+        """서버 관리자용: 계정 비밀번호 재설정 (관리자 비밀번호 분실 시 복구)"""
+        import bcrypt
+
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            raise click.ClickException(f"존재하지 않는 계정입니다: {username}")
+        if len(password) < 8:
+            raise click.ClickException("비밀번호는 8자 이상이어야 합니다.")
+
+        user.password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
+        db.session.commit()
+        click.echo(f"[{user.role}] {username} 비밀번호를 변경했습니다.")
