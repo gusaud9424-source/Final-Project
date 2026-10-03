@@ -10,7 +10,7 @@ TASK_TOTAL = len(TASK_KEYS)
 TASK_TITLES = {
     "concept": "개념 학습",
     "practice": "실습 성공",
-    "defense": "방어 퀴즈",
+    "defense": "퀴즈 풀기",
 }
 
 
