@@ -9,7 +9,7 @@
     <div class="sq-quizset-modal" @click.self="handleOverlayClick">
       <div class="sq-quizset-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="sq-quizset-title">
         <div class="sq-quizset-modal__header">
-          <h2 id="sq-quizset-title" class="sq-quizset-modal__title">방어 퀴즈</h2>
+          <h2 id="sq-quizset-title" class="sq-quizset-modal__title">퀴즈 풀기</h2>
           <button type="button" class="sq-quizset-modal__close" aria-label="닫기" @click="handleClose">
             <i class="bi bi-x-lg" aria-hidden="true"></i>
           </button>

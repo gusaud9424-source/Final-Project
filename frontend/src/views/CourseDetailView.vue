@@ -163,7 +163,7 @@ const TABS = [
 const TASK_HINTS = {
   concept: "과목 정보 탭 열람",
   practice: "실습 페이지에서 공격 성공",
-  defense: "방어 퀴즈 70% 이상 통과",
+  defense: "퀴즈 70% 이상 통과",
 };
 const SUBMISSION_TEXT = {
   concept: "과목 정보 열람 완료",
