@@ -371,6 +371,10 @@ RECENT_LIMIT = 10
 SOURCE_LABELS = {
     "attendance": "출석",
     "practice": "실습",
+    "practice_low": "실습(하)",
+    "practice_medium": "실습(중)",
+    "practice_high": "실습(상)",
+    "practice_impossible": "실습(안전)",
     "mission": "미션",
     "hint": "힌트",
 }

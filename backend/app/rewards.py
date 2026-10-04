@@ -13,18 +13,31 @@ bp = Blueprint("rewards", __name__, url_prefix="/api/v1/rewards")
 LEVEL_CAP = 50
 
 # 여기 등록된 source만 roll_pending으로 보상 생성 가능
+# practice_<레벨>: 실습 레벨별 클리어 보상. 높은 레벨일수록 크게, 안전 레벨은 방어 확인용으로 작게.
+# (practice: 레벨 구조 도입 전 과목당 1회 실습 보상 — 기존 기록 표시용으로 유지)
 XP_RANGES = {
     "concept": (20, 50),
     "practice": (50, 100),
+    "practice_low": (20, 40),
+    "practice_medium": (40, 70),
+    "practice_high": (70, 110),
+    "practice_impossible": (20, 40),
     "mission": (30, 80),
 }
 POINT_RANGES = {
     "concept": (10, 20),
     "practice": (20, 40),
+    "practice_low": (10, 20),
+    "practice_medium": (20, 35),
+    "practice_high": (35, 55),
+    "practice_impossible": (10, 20),
     "mission": (10, 30),
 }
+PRACTICE_TIER_SOURCES = ("practice_low", "practice_medium", "practice_high", "practice_impossible")
 
 # 과목 미션 보상 source (헤더 보물상자가 아니라 과목 미션 탭에서만 수령)
+# 과목 미션 탭에서만 수령하는 보상: 1회차 개념 학습 · 2회차 실습 성공 · 3회차 방어 퀴즈(각 1개)
+# 실습 페이지의 레벨별 클리어 보상(practice_<레벨>)은 보물상자에서 수령한다.
 COURSE_REWARD_SOURCES = ("concept", "practice", "mission")
 
 # 과목별 단일 보상 종류 (실습·미션 공통): 초급=경험치, 중급·고급=포인트
@@ -67,7 +80,7 @@ def points_balance(user_id):
 
 def _reward_types(source, course_slug):
     """source별 생성할 보상 종류. 개념·실습·미션 모두 과목별 고정 1종(경험치 또는 포인트)."""
-    if source in ("concept", "practice", "mission"):
+    if source in ("concept", "practice", "mission") or source in PRACTICE_TIER_SOURCES:
         reward_type = COURSE_REWARD_TYPE.get(course_slug)
         if not reward_type:
             # 잘못된 값으로 지급되지 않도록 미등록 과목은 보상을 만들지 않는다
@@ -177,7 +190,7 @@ def list_pending():
 @bp.post("/<int:reward_id>/claim")
 @limiter.limit("30 per minute")
 def claim_reward(reward_id):
-    """보물상자 개별 수령 — 미션(방어 퀴즈) 보상은 여기서 받지 않는다(미션 탭 전용)."""
+    """보물상자 개별 수령 — 과목 미션(개념·실습 성공·퀴즈) 보상은 여기서 받지 않는다(미션 탭 전용)."""
     user = current_user()
     if not user:
         return jsonify(message="로그인이 필요합니다."), 401

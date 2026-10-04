@@ -106,7 +106,7 @@
       <!-- 미션 탭 -->
       <section v-else-if="activeTab === 'tasks'" class="sq-course__panel" role="tabpanel">
         <h2 class="sq-course__section-title">미션</h2>
-        <p class="sq-course__hint">미션을 달성하면 오른쪽에서 보상을 받을 수 있습니다. 보상은 여기 미션 탭에서 받으세요.</p>
+        <p class="sq-course__hint">미션을 완수하면 오른쪽 칸에 받을 보상이 표시됩니다. 클릭해서 받으세요.</p>
         <p v-if="claimableCount" class="sq-course__notice">
           <i class="bi bi-gift-fill" aria-hidden="true"></i>
           받을 수 있는 보상이 {{ claimableCount }}개 있어요! 오른쪽 "보상 받기"를 눌러 받으세요.
@@ -265,7 +265,7 @@ function rewardState(key) {
 
 // 수령 대기 중인 보상 개수 (미션 탭에서 받을 수 있는 보상)
 const claimableCount = computed(() =>
-  Object.values(rewards.value).filter((r) => r.status === "pending").length
+  Object.values(rewards.value).filter((r) => r.status === "pending" && r.claimAt !== "chest").length
 );
 
 // 백틱(`)으로 감싼 구간을 code 조각으로 분리 (v-html 미사용)

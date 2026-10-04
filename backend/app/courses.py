@@ -10,13 +10,18 @@ from .practice_builders import PRACTICE_BUILDERS
 from .quiz_bank import QUIZ_BANKS
 from .progress import (
     TASK_TITLES,
+    cleared_tiers,
     completed_tasks,
     current_user,
+    is_tier_unlocked,
     mark_task_complete,
+    mark_tier_cleared,
+    tier_states,
+    TIER_LABELS,
     progress_summary,
     serialize_datetime,
 )
-from .rewards import COURSE_REWARD_TYPE, LEDGER_MODELS, RANGES, _apply_claim, _balance, _reward_types, roll_pending
+from .rewards import COURSE_REWARD_SOURCES, COURSE_REWARD_TYPE, LEDGER_MODELS, RANGES, _apply_claim, _balance, _reward_types, roll_pending
 
 bp = Blueprint("courses", __name__, url_prefix="/api/v1/courses")
 
@@ -131,7 +136,44 @@ def practice_hints(slug):
     if difficulty not in builder.difficulties:
         return jsonify(message="지원하지 않는 난이도입니다."), 400
 
+    # 잠긴 레벨의 힌트는 제공하지 않는다(하 → 중 → 상 순서 학습)
+    if not is_tier_unlocked(difficulty, cleared_tiers(user.id, course.id)):
+        return jsonify(message=_TIER_LOCKED_MESSAGE), 403
+
     return jsonify(hints=builder.hints(difficulty))
+
+
+_TIER_LOCKED_MESSAGE = "이전 레벨을 먼저 통과해야 이 레벨을 학습할 수 있습니다."
+# 실습 미션(2회차) 완료 조건: 이 레벨을 모두 통과 (보상은 레벨마다 따로 지급)
+PRACTICE_REWARD_TIERS = ("low", "medium", "high")
+
+
+@bp.get("/<slug>/practice/tiers")
+def practice_tiers(slug):
+    """레벨별 잠금·통과 상태 (하 → 중 → 상 → 안전)"""
+    user, course, error = _load_enrolled_course(slug)
+    if error:
+        return error
+
+    if course.slug not in PRACTICE_BUILDERS:
+        return jsonify(message="이 과목에는 아직 실습이 없습니다."), 404
+
+    cleared = cleared_tiers(user.id, course.id)
+    # 레벨별 보상 도입 전에 통과한 레벨도 보상 지급(멱등: 이미 생성·지급된 레벨은 건너뜀)
+    for tier in cleared:
+        _roll_tier_reward(user.id, course, tier)
+    return jsonify(tiers=tier_states(cleared))
+
+
+def _roll_tier_reward(user_id, course, tier):
+    """레벨 클리어 보상 생성(보물상자 수령). 같은 레벨은 한 번만 생성된다."""
+    return roll_pending(
+        user_id,
+        f"practice_{tier}",
+        f"{course.title} 실습 {TIER_LABELS[tier]} 레벨",
+        ref=f"practice:{course.slug}:{tier}",
+        course_slug=course.slug,
+    )
 
 
 @bp.post("/<slug>/practice/run")
@@ -153,17 +195,27 @@ def run_practice(slug):
     if error_message:
         return jsonify(message=error_message), 400
 
+    # 서버에서도 레벨 순서를 강제한다(화면 조작으로 잠긴 레벨을 실행하는 것 방지)
+    if not is_tier_unlocked(difficulty, cleared_tiers(user.id, course.id)):
+        return jsonify(message=_TIER_LOCKED_MESSAGE), 403
+
     result = builder.run(difficulty, user_input)
+
+    # 레벨 통과 판정
+    # - 하·중·상: 공격 성공 시 통과
+    # - 안전: 공격이 막히는 것을 직접 확인(1회 이상 시도)하면 통과
+    tier_cleared = False
+    if difficulty == "impossible" or result.success:
+        mark_tier_cleared(user.id, course.id, difficulty)
+        tier_cleared = True
 
     rewarded = False
     xp_amount = None
     point_amount = None
-    if result.success:
-        mark_task_complete(user.id, course.id, "practice")
-        # 실습 보상은 XP·포인트 2종, 미수령 상태로 생성(수령은 과목 상세 > 미션 탭에서)
-        rows = roll_pending(
-            user.id, "practice", f"{course.title} 실습", ref=f"practice:{course.slug}", course_slug=course.slug
-        )
+    # 레벨 클리어 보상: 하·중·상·안전 각 레벨을 처음 통과할 때마다 지급 (수령은 헤더 보물상자)
+    cleared_now = cleared_tiers(user.id, course.id)
+    if tier_cleared:
+        rows = _roll_tier_reward(user.id, course, difficulty)
         if rows:
             # 실습 보상도 과목별 1종(경험치 또는 포인트). 해당 종류만 금액을 채운다.
             amounts = {row.type: row.amount for row in rows}
@@ -171,12 +223,21 @@ def run_practice(slug):
             xp_amount = amounts.get("xp")
             point_amount = amounts.get("point")
 
+    # 실습 미션(2회차) 완료 조건: 하·중·상 3개 레벨 모두 통과 → 미션 탭에서 받을 보상 1개 생성
+    if set(PRACTICE_REWARD_TIERS) <= cleared_now:
+        mark_task_complete(user.id, course.id, "practice")
+        roll_pending(
+            user.id, "practice", f"{course.title} 실습 성공", ref=f"practice:{course.slug}", course_slug=course.slug
+        )
+
     return jsonify(
         success=result.success,
         output=result.output,
         rewarded=rewarded,
         xp=xp_amount,
         points=point_amount,
+        tierCleared=tier_cleared,
+        tiers=tier_states(cleared_now),
     )
 
 
@@ -317,7 +378,8 @@ def quiz_set_submit(slug):
     )
 
 
-# ── 미션 탭 보상 (미션 카드에서만 수령) ─────────────────────────────
+# ── 미션 탭 보상 ─────────────────────────────
+# 1~3회차 미션 보상은 모두 미션 카드에서 수령 (실습 페이지 레벨별 보상만 보물상자)
 # 미션(task) → 보상 source. concept(개념 학습)은 보상 없이 진도만 반영
 TASK_REWARD_SOURCE = {"concept": "concept", "practice": "practice", "defense": "mission"}
 
@@ -337,6 +399,8 @@ def _task_reward_state(user_id, course, task_key):
         pending = any(r.claimed_at is None for r in shown)
         return {
             "status": "pending" if pending else "claimed",
+            # 수령 위치: 미션 탭(mission) / 헤더 보물상자(chest)
+            "claimAt": "mission" if source in COURSE_REWARD_SOURCES else "chest",
             "items": [{"type": r.type, "amount": r.amount, "claimed": r.claimed_at is not None} for r in shown],
         }
 
@@ -362,7 +426,29 @@ def course_rewards(slug):
     user, course, error = _load_enrolled_course(slug)
     if error:
         return error
+    _backfill_mission_rewards(user.id, course)
     return jsonify(rewards={key: _task_reward_state(user.id, course, key) for key in TASK_KEYS})
+
+
+# 미션 탭 수령 대상(1회차 개념 학습 · 2회차 실습 성공 · 3회차 방어 퀴즈) → (source, 보상 사유)
+# 미션을 완수하면 미수령 보상 1개가 생기고, 미션 탭 오른쪽 칸을 클릭해 받는다.
+_MISSION_TAB_REWARDS = {
+    "concept": ("concept", "개념 학습"),
+    "practice": ("practice", "실습 성공"),
+    "defense": ("mission", "미션"),
+}
+
+
+def _backfill_mission_rewards(user_id, course):
+    """미션을 완수했는데 보상 기록이 없으면(보상 기능 도입 전 완료 등) 미수령 보상을 생성한다.
+    완수하지 않은 미션에는 절대 만들지 않으며, roll_pending 이 같은 ref 중복 생성을 막는다(멱등)."""
+    done = completed_tasks(user_id, course.id)
+    for task_key, (source, label) in _MISSION_TAB_REWARDS.items():
+        if task_key not in done:
+            continue
+        roll_pending(
+            user_id, source, f"{course.title} {label}", ref=f"{source}:{course.slug}", course_slug=course.slug
+        )
 
 
 @bp.post("/<slug>/rewards/<task_key>/claim")
@@ -374,6 +460,9 @@ def claim_course_reward(slug, task_key):
     source = TASK_REWARD_SOURCE.get(task_key)
     if not source:
         return jsonify(message="보상이 없는 미션입니다."), 404
+    # 실습 성공 보상은 보물상자 전용 (미션 탭에서는 상태만 표시)
+    if source not in COURSE_REWARD_SOURCES:
+        return jsonify(message="실습 보상은 헤더의 보물상자에서 받으세요."), 400
 
     # 본인 · 해당 미션의 미수령 보상만 잠금 조회. 금액·종류는 DB 값만 사용
     rows = (

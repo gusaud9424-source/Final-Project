@@ -1,5 +1,5 @@
 <!--
-  SecuQuest — 미션 보상 슬롯 (과목 미션 탭에서만 수령)
+  SecuQuest — 미션 보상 슬롯 (개념·미션 보상은 여기서 수령, 실습 보상은 보물상자 안내)
   © 2026 5팀_Security Learning Platform
 -->
 <template>
@@ -11,6 +11,18 @@
       <li v-for="(item, i) in state.items" :key="i">
         <i class="bi" :class="iconOf(item.type)" aria-hidden="true"></i>
         {{ labelOf(item.type) }} {{ item.min }}~{{ item.max }}
+      </li>
+    </ul>
+  </div>
+
+  <!-- 수령 대기 · 보물상자 수령 대상(실습 성공 보상): 미션 탭에서는 안내만 -->
+  <div v-else-if="state.status === 'pending' && state.claimAt === 'chest'" class="sq-reward sq-reward--chest">
+    <i class="bi bi-gift-fill" aria-hidden="true"></i>
+    <span class="sq-reward__label">보물상자에서 받기</span>
+    <ul class="sq-reward__items">
+      <li v-for="(item, i) in state.items" :key="i">
+        <i class="bi" :class="iconOf(item.type)" aria-hidden="true"></i>
+        {{ labelOf(item.type) }} +{{ item.amount }}
       </li>
     </ul>
   </div>
@@ -120,6 +132,12 @@ function labelOf(type) {
 .sq-reward--locked {
   color: var(--sq-text-sub);
   border-style: dashed;
+}
+
+/* 보물상자 수령 대상: 미션 탭에서는 클릭 없이 안내만 */
+.sq-reward--chest {
+  border-color: var(--sq-color-accent);
+  color: var(--sq-color-accent);
 }
 
 .sq-reward--pending {

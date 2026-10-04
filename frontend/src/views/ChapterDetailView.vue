@@ -22,11 +22,37 @@
     >
       <template #practice>
         <template v-if="practiceSupported">
-          <div class="sq-practice__tiers" role="radiogroup" aria-label="난이도">
-            <label v-for="tier in TIERS" :key="tier.key" class="sq-practice__tier">
-              <input v-model="selectedTier" type="radio" name="tier" :value="tier.key" @change="onTierChange" />
-              <span>{{ tier.label }}</span>
-            </label>
+          <!-- 레벨 스테퍼: 하 → 중 → 상 → 안전 순서로만 진행 (이전 레벨 통과 시 다음 레벨 열림) -->
+          <ol class="sq-tiers" aria-label="실습 레벨">
+            <li v-for="(tier, i) in tierList" :key="tier.key" class="sq-tiers__item">
+              <button
+                type="button"
+                class="sq-tiers__step"
+                :class="{
+                  'is-active': selectedTier === tier.key,
+                  'is-cleared': tier.cleared,
+                  'is-locked': !tier.unlocked,
+                }"
+                :disabled="!tier.unlocked"
+                :aria-current="selectedTier === tier.key ? 'step' : undefined"
+                @click="selectTier(tier.key)"
+              >
+                <span class="sq-tiers__num">
+                  <i v-if="tier.cleared" class="bi bi-check-lg" aria-hidden="true"></i>
+                  <i v-else-if="!tier.unlocked" class="bi bi-lock-fill" aria-hidden="true"></i>
+                  <template v-else>{{ i + 1 }}</template>
+                </span>
+                <span class="sq-tiers__label">{{ TIER_META[tier.key].label }} ({{ TIER_META[tier.key].name }})</span>
+                <span class="sq-tiers__state">{{ tier.cleared ? "통과" : tier.unlocked ? "진행 가능" : "잠김" }}</span>
+              </button>
+            </li>
+          </ol>
+
+          <div class="sq-tiers__guide">
+            <p class="sq-tiers__guide-title">
+              {{ TIER_META[selectedTier].label }} 레벨 — {{ TIER_META[selectedTier].summary }}
+            </p>
+            <p v-if="tierNotice" class="sq-tiers__notice">{{ tierNotice }}</p>
           </div>
 
           <CsrfPractice
@@ -34,7 +60,7 @@
             :key="slug + '-csrf'"
             :slug="slug"
             :tier="selectedTier"
-            @result="(data) => (lastResult = data)"
+            @result="onResult"
           >
             <template #actions>
               <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
@@ -48,7 +74,7 @@
             :key="slug + '-sql'"
             :slug="slug"
             :tier="selectedTier"
-            @result="(data) => (lastResult = data)"
+            @result="onResult"
           >
             <template #actions>
               <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
@@ -62,7 +88,7 @@
             :key="slug + '-cmd'"
             :slug="slug"
             :tier="selectedTier"
-            @result="(data) => (lastResult = data)"
+            @result="onResult"
           >
             <template #actions>
               <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
@@ -76,7 +102,7 @@
             :key="slug + '-upload'"
             :slug="slug"
             :tier="selectedTier"
-            @result="(data) => (lastResult = data)"
+            @result="onResult"
           >
             <template #actions>
               <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
@@ -90,7 +116,7 @@
             :key="slug + '-blind'"
             :slug="slug"
             :tier="selectedTier"
-            @result="(data) => (lastResult = data)"
+            @result="onResult"
           >
             <template #actions>
               <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
@@ -104,7 +130,7 @@
             :key="slug + '-stored'"
             :slug="slug"
             :tier="selectedTier"
-            @result="(data) => (lastResult = data)"
+            @result="onResult"
           >
             <template #actions>
               <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
@@ -118,7 +144,7 @@
             :key="slug"
             :slug="slug"
             :tier="selectedTier"
-            @result="(data) => (lastResult = data)"
+            @result="onResult"
           >
             <template #actions>
               <button type="button" class="sq-btn sq-btn--ghost" @click="toggleHints">
@@ -169,13 +195,13 @@
             </span>
             <pre class="sq-practice__output">{{ lastResult.output }}</pre>
             <p v-if="lastResult.rewarded" class="sq-practice__reward">
-              보상 대기 중:
+              {{ TIER_META[selectedTier].label }} 레벨 클리어 보상:
               <template v-if="lastResult.xp">경험치 +{{ lastResult.xp }}</template>
               <template v-else>포인트 +{{ lastResult.points }}</template>
-              — 과목 상세의 미션 탭에서 받으세요
+              — 헤더의 보물상자에서 받으세요
             </p>
             <p v-else-if="lastResult.success" class="sq-practice__reward sq-practice__reward--muted">
-              이미 실습 보상을 받은 과목입니다.
+              이미 이 레벨의 클리어 보상을 받았습니다.
             </p>
           </div>
         </template>
@@ -207,18 +233,15 @@ import SqlInjectionPractice from "@/components/practice/SqlInjectionPractice.vue
 import StoredXssPractice from "@/components/practice/StoredXssPractice.vue";
 import CsrfPractice from "@/components/practice/CsrfPractice.vue";
 import { useEnrollStore } from "@/stores/enroll";
+import { TIER_META } from "@/content/tierGuides";
 import { useRewardStore } from "@/stores/reward";
 
 // 백엔드 PRACTICE_BUILDERS에 등록된 과목만 실습 UI를 노출한다.
 const PRACTICE_SUPPORTED_SLUGS = ["command-injection", "xss-reflected", "xss-dom", "xss-stored", "sql-injection", "sql-injection-blind", "file-upload", "csrf"];
 const XSS_SLUGS = ["xss-reflected", "xss-dom", "xss-stored"];
 // 피드백 반영: 하 → 중 → 상 순서로 학습, 마지막은 방어 코드가 적용된 "안전" 단계
-const TIERS = [
-  { key: "low", label: "하 (Low)" },
-  { key: "medium", label: "중 (Medium)" },
-  { key: "high", label: "상 (High)" },
-  { key: "impossible", label: "안전 (Impossible)" },
-];
+// 레벨 잠금·통과 상태는 서버(/practice/tiers)가 기준이며, 서버에서도 순서를 강제한다.
+const TIER_ORDER = ["low", "medium", "high", "impossible"];
 const INPUT_LABELS = {
   "command-injection": {
     low: "로그 검색어",
@@ -261,6 +284,9 @@ const inputPlaceholder = INPUT_PLACEHOLDERS[slug] || "값을 입력하세요";
 const detail = computed(() => enrollStore.items.find((i) => i.id === slug)?.detail || null);
 
 const selectedTier = ref("low");
+// 서버 응답 전 기본값: 하만 열림
+const tierList = ref(TIER_ORDER.map((key, i) => ({ key, unlocked: i === 0, cleared: false })));
+const tierNotice = ref("");
 const userInput = ref("");
 const running = ref(false);
 const runError = ref("");
@@ -300,8 +326,43 @@ function toggleHints() {
   if (hintsOpen.value) fetchHints();
 }
 
-function onTierChange() {
+function selectTier(key) {
+  const tier = tierList.value.find((t) => t.key === key);
+  if (!tier?.unlocked || selectedTier.value === key) return;
+  selectedTier.value = key;
+  tierNotice.value = "";
   if (hintsOpen.value) fetchHints();
+}
+
+// 아직 통과하지 않은 첫 번째 열린 레벨 (모두 통과했으면 마지막 레벨)
+function firstOpenTier(list) {
+  const next = list.find((t) => t.unlocked && !t.cleared);
+  return next ? next.key : list[list.length - 1].key;
+}
+
+async function loadTiers() {
+  try {
+    const { data } = await client.get(`/courses/${slug}/practice/tiers`);
+    tierList.value = data.tiers;
+    selectedTier.value = firstOpenTier(data.tiers);
+  } catch {
+    // 실패 시 기본값(하만 열림) 유지
+  }
+}
+
+// 각 실습 컴포넌트의 실행 결과 처리: 결과 표시 + 레벨 상태 갱신
+function onResult(data) {
+  lastResult.value = data;
+  if (!data?.tiers) return;
+  const wasCleared = tierList.value.find((t) => t.key === selectedTier.value)?.cleared;
+  tierList.value = data.tiers;
+  if (data.tierCleared && !wasCleared) {
+    const index = TIER_ORDER.indexOf(selectedTier.value);
+    const nextKey = TIER_ORDER[index + 1];
+    tierNotice.value = nextKey
+      ? `${TIER_META[selectedTier.value].label} 레벨 통과! 이제 ${TIER_META[nextKey].label} 레벨이 열렸습니다.`
+      : "모든 레벨을 마쳤습니다. 안전 레벨의 방어 원리를 과목 정보 탭에서 다시 정리해 보세요.";
+  }
 }
 
 async function runPractice() {
@@ -313,8 +374,8 @@ async function runPractice() {
       difficulty: selectedTier.value,
       input: userInput.value,
     });
-    lastResult.value = data;
-    // 보상은 미수령 상태로 쌓이고 과목 상세 > 미션 탭에서 수령
+    onResult(data);
+    // 보상은 미수령 상태로 쌓이고 헤더 보물상자에서 수령
     if (data.rewarded) await rewardStore.fetchPending();
   } catch (error) {
     runError.value = getErrorMessage(error, "실행에 실패했습니다.");
@@ -331,6 +392,7 @@ watch(selectedTier, () => {
 onMounted(async () => {
   try {
     await loadCourse();
+    if (practiceSupported.value) await loadTiers();
   } catch (error) {
     errorStatus.value = error.response?.status ?? null;
     errorMessage.value = getErrorMessage(error, "과목 정보를 불러오지 못했습니다.");
@@ -379,26 +441,99 @@ onMounted(async () => {
   gap: 10px;
 }
 
-.sq-practice__tiers {
-  display: flex;
+/* 레벨 스테퍼 (하 → 중 → 상 → 안전) */
+.sq-tiers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
 }
 
-.sq-practice__tier {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+.sq-tiers__step {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
   border: 1px solid var(--sq-card-border);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+  color: var(--sq-text-main);
+  font-family: var(--sq-font-family);
+  text-align: left;
   cursor: pointer;
 }
 
-.sq-practice__tier:has(input:checked) {
+.sq-tiers__step.is-active {
   border-color: var(--sq-color-accent);
   background: var(--sq-color-accent-subtle);
+}
+
+.sq-tiers__step.is-locked {
+  color: var(--sq-text-sub);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.sq-tiers__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--sq-card-border);
+  color: var(--sq-text-sub);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sq-tiers__step.is-active .sq-tiers__num {
+  background: var(--sq-color-accent);
+  color: var(--sq-color-on-accent);
+}
+
+.sq-tiers__step.is-cleared .sq-tiers__num {
+  background: var(--sq-badge-submitted-bg);
+  color: var(--sq-badge-submitted-text);
+}
+
+.sq-tiers__label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sq-tiers__state {
+  font-size: 12px;
+  color: var(--sq-text-sub);
+}
+
+.sq-tiers__guide {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--sq-color-accent);
+  background: var(--sq-color-accent-subtle);
+}
+
+.sq-tiers__guide-title {
+  margin: 0;
+  font-size: 14px;
+  color: var(--sq-text-main);
+}
+
+.sq-tiers__notice {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sq-color-accent);
+}
+
+@media (max-width: 640px) {
+  .sq-tiers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .sq-practice__label {
