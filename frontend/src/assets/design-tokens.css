@@ -25,6 +25,8 @@
   --sq-color-accent-pressed: #2B4798; /* 추정: primary 20% darken, 신뢰도 70% */
   --sq-color-accent-subtle: color-mix(in srgb, var(--sq-color-accent) 8%, transparent); /* accent 8% 틴트 */
   --sq-color-on-accent: #FFFFFF; /* accent 배경 위 텍스트/아이콘용 */
+  --sq-color-danger: #DD3333; /* 강조 버튼(자료실 내려받기 등). 실습 화면 Submit 버튼(#d33)과 동일 계열 */
+  --sq-color-danger-hover: #C42B2B; /* danger 10% darken */
 
   /* ─── 텍스트 ─── */
   --sq-text-body: #1A1D2A;
