@@ -5,6 +5,22 @@ from .models import Course, PointLedger, Reward, TaskProgress, User, XpLedger
 
 
 def register_cli(app):
+    @app.cli.command("show-progress")
+    @click.option("--email", required=True, help="대상 사용자 이메일")
+    @click.option("--course", "slug", required=True, help="과목 slug (예: xss-dom)")
+    def show_progress(email, slug):
+        """점검용(읽기 전용): 사용자·과목의 미션 완료 기록, 레벨 통과 기록, 보상 생성·수령 시각 출력"""
+        user = User.query.filter_by(email=email).first()
+        course = Course.query.filter_by(slug=slug).first()
+        if not user or not course:
+            raise click.ClickException("사용자 또는 과목을 찾을 수 없습니다.")
+        click.echo(f"[task_progress] {email} / {slug}")
+        for row in TaskProgress.query.filter_by(user_id=user.id, course_id=course.id).order_by(TaskProgress.completed_at):
+            click.echo(f"  {row.task_key:<18} 완료 {row.completed_at}")
+        click.echo("[rewards]")
+        for row in Reward.query.filter(Reward.user_id == user.id, Reward.ref.like(f"%:{slug}%")).order_by(Reward.id):
+            click.echo(f"  {row.source:<20} {row.ref:<35} {row.type:<5} {row.amount:>4} 생성 {row.created_at} 수령 {row.claimed_at}")
+
     @app.cli.command("reset-rewards")
     @click.option("--email", required=True, help="대상 사용자 이메일")
     @click.option("--course", "slug", required=True, help="과목 slug (예: command-injection)")

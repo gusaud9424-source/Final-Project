@@ -8,6 +8,7 @@ from .course_content import DEFENSE_QUIZZES, public_quiz
 from .models import TASK_KEYS, Course, Enrollment, Reward
 from .practice_builders import PRACTICE_BUILDERS
 from .quiz_bank import QUIZ_BANKS
+from .concept_check import CONCEPT_QUESTIONS
 from .progress import (
     TASK_TITLES,
     cleared_tiers,
@@ -15,13 +16,14 @@ from .progress import (
     current_user,
     is_tier_unlocked,
     mark_task_complete,
+    mark_check_passed,
     mark_tier_cleared,
     tier_states,
     TIER_LABELS,
     progress_summary,
     serialize_datetime,
 )
-from .rewards import COURSE_REWARD_SOURCES, COURSE_REWARD_TYPE, LEDGER_MODELS, RANGES, _apply_claim, _balance, _reward_types, roll_pending
+from .rewards import COURSE_REWARD_SOURCES, COURSE_REWARD_TYPE, LEDGER_MODELS, RANGES, _apply_claim, _balance, _balance_after_claim, _reward_types, roll_pending
 
 bp = Blueprint("courses", __name__, url_prefix="/api/v1/courses")
 
@@ -74,18 +76,86 @@ def course_detail(slug):
     )
 
 
-@bp.post("/<slug>/tasks/concept")
-def complete_concept(slug):
+# ── 1회차 개념 학습: 확인 문제 (과목 정보 내용 기반 5문항, 3문항 이상 정답 시 완료) ──
+# 문항: app/concept_check.py (3회차 50문항 은행과 별개)
+CONCEPT_CHECK_COUNT = 5
+CONCEPT_CHECK_PASS = 3
+
+
+def _concept_session_key(slug):
+    return f"concept_check:{slug}"
+
+
+def _concept_pool(slug):
+    return CONCEPT_QUESTIONS.get(slug, [])
+
+
+@bp.get("/<slug>/concept-check")
+def concept_check(slug):
+    """개념 확인 문제 출제 (정답은 내려주지 않고, 출제한 문항 id 는 세션에 보관)"""
     user, course, error = _load_enrolled_course(slug)
     if error:
         return error
 
-    record = mark_task_complete(user.id, course.id, "concept")
-    # 개념 학습 보상도 미수령 상태로 생성(수령은 미션 탭)
-    roll_pending(
-        user.id, "concept", f"{course.title} 개념 학습", ref=f"concept:{course.slug}", course_slug=course.slug
+    pool = _concept_pool(course.slug)
+    if len(pool) < CONCEPT_CHECK_COUNT:
+        return jsonify(message="개념 확인 문제를 준비 중입니다."), 404
+
+    questions = secrets.SystemRandom().sample(pool, CONCEPT_CHECK_COUNT)
+    session[_concept_session_key(course.slug)] = [q["id"] for q in questions]
+    return jsonify(
+        questions=[{"id": q["id"], "question": q["question"], "options": q["options"]} for q in questions],
+        passScore=CONCEPT_CHECK_PASS,
     )
-    return jsonify(taskKey="concept", completed=True, completedAt=serialize_datetime(record.completed_at))
+
+
+@bp.post("/<slug>/concept-check/submit")
+@limiter.limit("20 per minute")
+def concept_check_submit(slug):
+    """채점: 3문항 이상 정답이면 1회차 완료 + 미수령 보상 생성(수령은 미션 탭 클릭)"""
+    user, course, error = _load_enrolled_course(slug)
+    if error:
+        return error
+
+    issued = session.get(_concept_session_key(course.slug))
+    if not issued:
+        return jsonify(message="문제를 먼저 불러오세요."), 400
+
+    payload = request.get_json(silent=True) or {}
+    answers = payload.get("answers")
+    if not isinstance(answers, dict):
+        return jsonify(message="답안 형식이 올바르지 않습니다."), 400
+
+    bank = {q["id"]: q for q in _concept_pool(course.slug)}
+    results = []
+    correct = 0
+    for qid in issued:
+        q = bank.get(qid)
+        if not q:
+            return jsonify(message="문제가 변경되었습니다. 다시 불러오세요."), 409
+        chosen = answers.get(qid)
+        ok = isinstance(chosen, int) and not isinstance(chosen, bool) and chosen == q["answer"]
+        correct += ok
+        results.append({"id": qid, "correct": ok, "answer": q["answer"], "explanation": q["explanation"]})
+
+    # 한 번 출제한 문항으로는 한 번만 채점
+    session.pop(_concept_session_key(course.slug), None)
+
+    passed = correct >= CONCEPT_CHECK_PASS
+    if passed:
+        # 확인 문제 통과 표시 → 이 기록이 있어야 1회차를 완료로 인정(탭 열람만으로 생긴 예전 기록 제외)
+        mark_check_passed(user.id, course.id)
+        mark_task_complete(user.id, course.id, "concept")
+        roll_pending(
+            user.id, "concept", f"{course.title} 개념 학습", ref=f"concept:{course.slug}", course_slug=course.slug
+        )
+    return jsonify(correct=correct, total=len(issued), passScore=CONCEPT_CHECK_PASS, passed=passed, results=results)
+
+
+@bp.post("/<slug>/tasks/concept")
+def complete_concept(slug):
+    """이전 방식(과목 정보 탭 열람만으로 완료)은 사용하지 않는다 — 확인 문제를 통과해야 완료"""
+    return jsonify(message="개념 확인 문제를 풀어 3문항 이상 맞혀야 완료됩니다."), 400
 
 
 @bp.post("/<slug>/quiz")
@@ -384,7 +454,7 @@ def quiz_set_submit(slug):
 TASK_REWARD_SOURCE = {"concept": "concept", "practice": "practice", "defense": "mission"}
 
 
-def _task_reward_state(user_id, course, task_key):
+def _task_reward_state(user_id, course, task_key, done=True):
     """미션 하나의 보상 상태: locked(미달성) / pending(수령 대기) / claimed(수령 완료) / none(보상 없음)"""
     source = TASK_REWARD_SOURCE.get(task_key)
     if not source:
@@ -395,6 +465,9 @@ def _task_reward_state(user_id, course, task_key):
     canonical = COURSE_REWARD_TYPE.get(course.slug)
     rows = Reward.query.filter_by(user_id=user_id, source=source, ref=ref).order_by(Reward.type).all()
     shown = [r for r in rows if r.type == canonical] or rows
+    # 미션을 완수하지 않았으면 이전 기록(미수령·수령)과 관계없이 '미션 완료 시 지급'으로 표시
+    if not done:
+        return _locked_state(source, course)
     if shown:
         pending = any(r.claimed_at is None for r in shown)
         return {
@@ -411,7 +484,11 @@ def _task_reward_state(user_id, course, task_key):
         if row:
             return {"status": "claimed", "items": [{"type": canonical, "amount": row.amount, "claimed": True}]}
 
-    # 아직 달성 전: 받을 보상 종류와 범위 미리보기
+    return _locked_state(source, course)
+
+
+def _locked_state(source, course):
+    """아직 달성 전: 받을 보상 종류와 범위 미리보기"""
     return {
         "status": "locked",
         "items": [
@@ -427,7 +504,10 @@ def course_rewards(slug):
     if error:
         return error
     _backfill_mission_rewards(user.id, course)
-    return jsonify(rewards={key: _task_reward_state(user.id, course, key) for key in TASK_KEYS})
+    done = completed_tasks(user.id, course.id)
+    return jsonify(
+        rewards={key: _task_reward_state(user.id, course, key, done=key in done) for key in TASK_KEYS}
+    )
 
 
 # 미션 탭 수령 대상(1회차 개념 학습 · 2회차 실습 성공 · 3회차 방어 퀴즈) → (source, 보상 사유)
@@ -460,9 +540,11 @@ def claim_course_reward(slug, task_key):
     source = TASK_REWARD_SOURCE.get(task_key)
     if not source:
         return jsonify(message="보상이 없는 미션입니다."), 404
-    # 실습 성공 보상은 보물상자 전용 (미션 탭에서는 상태만 표시)
     if source not in COURSE_REWARD_SOURCES:
-        return jsonify(message="실습 보상은 헤더의 보물상자에서 받으세요."), 400
+        return jsonify(message="보물상자에서 받는 보상입니다."), 400
+    # 미션을 완수해야 수령 가능 (2회차는 하·중·상 모두 통과)
+    if task_key not in completed_tasks(user.id, course.id):
+        return jsonify(message="미션을 완수해야 보상을 받을 수 있습니다."), 403
 
     # 본인 · 해당 미션의 미수령 보상만 잠금 조회. 금액·종류는 DB 값만 사용
     rows = (
@@ -485,5 +567,5 @@ def claim_course_reward(slug, task_key):
     return jsonify(
         claimed=[{"type": r.type, "amount": r.amount} for r in rows],
         reward=_task_reward_state(user.id, course, task_key),
-        profile=_balance(user.id),
+        profile=_balance_after_claim(user.id),
     )

@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
 from . import db
-from .models import AttendanceSession, Course, Enrollment
+from .models import AttendanceSession, Course, Enrollment, Reward, TaskProgress
 from .progress import current_user
 
 bp = Blueprint("enrollments", __name__, url_prefix="/api/v1")
@@ -41,6 +41,8 @@ def create_enrollment():
     if Enrollment.query.filter_by(user_id=user.id, course_id=course.id).first():
         return jsonify(message="이미 수강 중인 과목입니다."), 409
 
+    # 수강신청 = 처음부터 시작: 이전 수강 때 남은 진도·레벨 기록과 받지 않은 과목 보상을 정리해 0%에서 시작
+    _reset_course_progress(user.id, course)
     db.session.add(Enrollment(user_id=user.id, course_id=course.id))
     try:
         db.session.commit()
@@ -50,6 +52,19 @@ def create_enrollment():
         return jsonify(message="이미 수강 중인 과목입니다."), 409
 
     return jsonify(course_slug=course.slug), 201
+
+
+def _reset_course_progress(user_id, course):
+    """과목 진도 초기화(커밋은 호출부).
+    - task_progress: 미션(개념·실습·퀴즈) + 레벨(tier_*) 기록 전부 삭제
+    - rewards: 이 과목의 미수령 보상만 삭제
+    이미 받은 보상(원장 기록)은 남겨 두므로, 다시 완수해도 같은 보상이 중복 지급되지 않는다."""
+    TaskProgress.query.filter_by(user_id=user_id, course_id=course.id).delete(synchronize_session=False)
+    Reward.query.filter(
+        Reward.user_id == user_id,
+        Reward.claimed_at.is_(None),
+        db.or_(Reward.ref.like(f"%:{course.slug}"), Reward.ref.like(f"%:{course.slug}:%")),
+    ).delete(synchronize_session=False)
 
 
 @bp.delete("/enrollments/<course_slug>")
@@ -67,7 +82,7 @@ def delete_enrollment(course_slug):
         return jsonify(message="수강 중인 과목이 아닙니다."), 404
 
     # 자식 행(출석 세션) 먼저 삭제 후 수강 정보 삭제
-    # 실습·퀴즈 진도는 사용자 기준으로 보존 → 재수강 시 이어서 진행
+    # 진도는 다음 수강신청 시 초기화된다(_reset_course_progress)
     AttendanceSession.query.filter_by(enrollment_id=enrollment.id).delete()
     db.session.delete(enrollment)
     db.session.commit()

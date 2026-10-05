@@ -28,7 +28,7 @@ from .models import (
     VerificationCode,
     XpLedger,
 )
-from .progress import TASK_TOTAL, current_user
+from .progress import PROGRESS_QUERY_KEYS, TASK_TOTAL, current_user, effective_task_rows
 
 bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 
@@ -240,7 +240,11 @@ def progress_overview():
 
     enrollments = Enrollment.query.filter(Enrollment.user_id.in_(ids)).all() if ids else []
     progress_rows = (
-        TaskProgress.query.filter(TaskProgress.user_id.in_(ids), TaskProgress.task_key.in_(TASK_KEYS)).all()
+        effective_task_rows(
+            TaskProgress.query.filter(
+                TaskProgress.user_id.in_(ids), TaskProgress.task_key.in_(PROGRESS_QUERY_KEYS)
+            ).all()
+        )
         if ids
         else []
     )
@@ -375,6 +379,7 @@ SOURCE_LABELS = {
     "practice_medium": "실습(중)",
     "practice_high": "실습(상)",
     "practice_impossible": "실습(안전)",
+    "levelup": "레벨업",
     "mission": "미션",
     "hint": "힌트",
 }
@@ -406,9 +411,11 @@ def student_detail(user_id):
         key=lambda c: (DIFFICULTY_ORDER.get(c.difficulty, 9), c.id),
     )
     enrollments = {e.course_id: e for e in Enrollment.query.filter_by(user_id=target.id).all()}
-    progress_rows = TaskProgress.query.filter(
-        TaskProgress.user_id == target.id, TaskProgress.task_key.in_(TASK_KEYS)
-    ).all()
+    progress_rows = effective_task_rows(
+        TaskProgress.query.filter(
+            TaskProgress.user_id == target.id, TaskProgress.task_key.in_(PROGRESS_QUERY_KEYS)
+        ).all()
+    )
     point_rows = PointLedger.query.filter_by(user_id=target.id).all()
     xp_rows = XpLedger.query.filter_by(user_id=target.id).all()
     pending_rewards = Reward.query.filter_by(user_id=target.id, claimed_at=None).count()

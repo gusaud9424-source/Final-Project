@@ -22,9 +22,42 @@ def current_user():
 
 
 def completed_tasks(user_id, course_id):
-    """{task_key: completed_at} 형태로 완료된 과제 반환"""
+    """{task_key: completed_at} 형태로 완료된 과제 반환 (실습 미션은 레벨 조건 적용)"""
     rows = TaskProgress.query.filter_by(user_id=user_id, course_id=course_id).all()
-    return {row.task_key: row.completed_at for row in rows if row.task_key in TASK_KEYS}
+    return {row.task_key: row.completed_at for row in effective_task_rows(rows)}
+
+
+# 2회차 실습 성공 미션 완료 조건: 하·중·상 레벨 통과 기록이 모두 있어야 함
+# (레벨 구조 도입 전 "아무 레벨 1회 성공"으로 남은 practice 기록은 완료로 보지 않는다)
+PRACTICE_REQUIRED_TIER_KEYS = ("tier_low", "tier_medium", "tier_high")
+# 1회차 개념 학습 완료 조건: 확인 문제 통과 기록(concept_check)이 있어야 함
+CONCEPT_CHECK_KEY = "concept_check"
+PROGRESS_QUERY_KEYS = TASK_KEYS + ("tier_low", "tier_medium", "tier_high", "tier_impossible", CONCEPT_CHECK_KEY)
+
+
+def mark_check_passed(user_id, course_id):
+    """개념 확인 문제 통과 기록(멱등)"""
+    return _upsert_progress(user_id, course_id, CONCEPT_CHECK_KEY)
+
+
+def effective_task_rows(rows):
+    """task_progress 행 목록에서 유효한 미션 완료 행만 반환.
+    rows 에는 같은 사용자·과목의 tier_* 행도 함께 들어 있어야 실습 미션 조건을 판정할 수 있다."""
+    tiers = {}
+    for row in rows:
+        if row.task_key.startswith("tier_") or row.task_key == CONCEPT_CHECK_KEY:
+            tiers.setdefault((row.user_id, row.course_id), set()).add(row.task_key)
+    result = []
+    for row in rows:
+        if row.task_key not in TASK_KEYS:
+            continue
+        marks = tiers.get((row.user_id, row.course_id), set())
+        if row.task_key == "practice" and not set(PRACTICE_REQUIRED_TIER_KEYS) <= marks:
+            continue
+        if row.task_key == "concept" and CONCEPT_CHECK_KEY not in marks:
+            continue
+        result.append(row)
+    return result
 
 
 def mark_task_complete(user_id, course_id, task_key):

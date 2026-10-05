@@ -159,6 +159,58 @@ def serialize_reward(reward):
     }
 
 
+# ─── 레벨업 보상 ───
+# 레벨이 오를 때마다 보물상자로 보상 1개 지급. 종류는 경험치/포인트 중 랜덤,
+# 금액은 레벨이 높을수록 커진다. 같은 레벨은 ref("levelup:<레벨>")로 1회만 생성(멱등).
+LEVELUP_SOURCE = "levelup"
+
+
+def levelup_range(reward_type, level):
+    """레벨별 레벨업 보상 금액 범위 (예: 2레벨 경험치 50~80, 10레벨 경험치 170~240)"""
+    if reward_type == "xp":
+        return (20 + level * 15, 40 + level * 20)
+    return (10 + level * 5, 20 + level * 8)
+
+
+def ensure_levelup_rewards(user_id):
+    """현재 레벨까지 받지 않은 레벨업 보상을 미수령 상태로 생성한다(2레벨부터).
+    레벨업 보상(경험치)을 받아 다시 레벨이 오르면 다음 호출 때 그 레벨 보상도 생성된다."""
+    level = compute_level(total_xp(user_id))["level"]
+    if level < 2:
+        return []
+
+    # 동시 요청 직렬화: 사용자 행을 잠근 뒤 중복 확인 → 생성
+    db.session.query(User).filter_by(id=user_id).with_for_update().one()
+    created = []
+    for lv in range(2, level + 1):
+        ref = f"{LEVELUP_SOURCE}:{lv}"
+        if _already_rewarded(user_id, LEVELUP_SOURCE, ref):
+            continue
+        reward_type = random.choice(("xp", "point"))
+        row = Reward(
+            user_id=user_id,
+            type=reward_type,
+            amount=random.randint(*levelup_range(reward_type, lv)),
+            source=LEVELUP_SOURCE,
+            ref=ref,
+            reason=f"레벨 {lv} 달성",
+        )
+        db.session.add(row)
+        created.append(row)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return []
+    return created
+
+
+def _balance_after_claim(user_id):
+    """수령 직후 레벨업 보상을 확인·생성한 뒤 잔액 반환"""
+    ensure_levelup_rewards(user_id)
+    return _balance(user_id)
+
+
 def _balance(user_id):
     level_info = compute_level(total_xp(user_id))
     return {
@@ -175,6 +227,9 @@ def list_pending():
     user = current_user()
     if not user:
         return jsonify(message="로그인이 필요합니다."), 401
+
+    # 놓친 레벨업 보상이 있으면 먼저 생성(보물상자에 표시)
+    ensure_levelup_rewards(user.id)
 
     # 과목 미션 보상(개념·실습·미션)은 과목 미션 탭에서만 수령한다.
     # 보물상자에는 그 외 보상만 모은다.
@@ -213,7 +268,7 @@ def claim_reward(reward_id):
         db.session.rollback()
         return jsonify(message="이미 받은 보상입니다."), 409
 
-    return jsonify(claimed=[serialize_reward(reward)], profile=_balance(user.id))
+    return jsonify(claimed=[serialize_reward(reward)], profile=_balance_after_claim(user.id))
 
 
 @bp.post("/claim-all")
@@ -238,4 +293,4 @@ def claim_all():
         db.session.rollback()
         return jsonify(message="보상 수령 중 충돌이 발생했습니다. 다시 시도하세요."), 409
 
-    return jsonify(claimed=[serialize_reward(reward) for reward in rewards], profile=_balance(user.id))
+    return jsonify(claimed=[serialize_reward(reward) for reward in rewards], profile=_balance_after_claim(user.id))

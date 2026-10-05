@@ -178,7 +178,7 @@ export const COURSE_GUIDES = {
 export const MISSION_GUIDE = {
   concept: {
     title: "개념 학습",
-    desc: "과목 정보 탭에서 취약점의 원리·영향·방어 방법을 읽고 이해합니다.",
+    desc: "과목 정보 탭에서 취약점의 원리·영향·방어 방법을 읽고, 하단의 개념 확인 문제 5개 중 3개 이상 맞히면 완료됩니다.",
     reward: "보상 없음 · 진도만 반영",
   },
   practice: {

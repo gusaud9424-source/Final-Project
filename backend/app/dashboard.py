@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify
 from sqlalchemy.orm import joinedload, selectinload
 
 from .models import TASK_KEYS, Enrollment, TaskProgress, User
-from .progress import current_user, progress_summary
+from .progress import PROGRESS_QUERY_KEYS, current_user, effective_task_rows, progress_summary
 
 bp = Blueprint("dashboard", __name__, url_prefix="/api/v1")
 
@@ -16,9 +16,9 @@ def _task_map(user_ids):
     if not user_ids:
         return done
     rows = TaskProgress.query.filter(
-        TaskProgress.user_id.in_(user_ids), TaskProgress.task_key.in_(TASK_KEYS)
+        TaskProgress.user_id.in_(user_ids), TaskProgress.task_key.in_(PROGRESS_QUERY_KEYS)
     ).all()
-    for row in rows:
+    for row in effective_task_rows(rows):
         done[(row.user_id, row.course_id)].add(row.task_key)
     return done
 

@@ -159,7 +159,6 @@
       <!-- 과목 정보 탭 -->
       <section v-else class="sq-course__panel" role="tabpanel">
         <h2 class="sq-course__section-title">과목 정보</h2>
-        <p v-if="conceptError" class="sq-course__error">{{ conceptError }}</p>
 
         <template v-if="guide">
           <article class="sq-guide-card sq-guide-card--wide">
@@ -203,6 +202,9 @@
             </dd>
           </template>
         </dl>
+
+        <!-- 1회차 개념 학습 확인 문제: 3/5 이상 정답 시 완료 -->
+        <ConceptCheck :slug="slug" :completed="conceptDone" @passed="onConceptPassed" />
       </section>
     </template>
   </div>
@@ -217,6 +219,7 @@ import { useEnrollStore } from "@/stores/enroll";
 import { useRewardStore } from "@/stores/reward";
 import QuizSetModal from "@/components/practice/QuizSetModal.vue";
 import RewardSlot from "@/components/practice/RewardSlot.vue";
+import ConceptCheck from "@/components/practice/ConceptCheck.vue";
 import { COURSE_GUIDES, MISSION_GUIDE } from "@/content/courseGuides";
 
 const TABS = [
@@ -245,11 +248,9 @@ const progress = ref({ completed: 0, total: 0, percent: 0 });
 const activeTab = ref("lecture");
 
 const quizModalOpen = ref(false);
-const conceptError = ref("");
 const rewardMessage = ref("");
 // task_key → { status, items } (서버 /courses/<slug>/rewards)
 const rewards = ref({});
-let conceptRequested = false;
 
 const guide = computed(() => COURSE_GUIDES[slug] || null);
 const detail = computed(() => enrollStore.items.find((i) => i.id === slug)?.detail || null);
@@ -288,24 +289,17 @@ async function loadRewards() {
   }
 }
 
-// 과목 정보 탭 최초 열람 시 concept 완료 처리(서버 멱등)
-async function completeConcept() {
-  const concept = tasks.value.find((t) => t.key === "concept");
-  if (conceptRequested || concept?.completed) return;
-  conceptRequested = true;
-  conceptError.value = "";
-  try {
-    await client.post(`/courses/${slug}/tasks/concept`);
-    await loadCourse();
-  } catch (error) {
-    conceptRequested = false;
-    conceptError.value = getErrorMessage(error, "학습 기록을 저장하지 못했습니다.");
-  }
+// 1회차 완료 여부 (확인 문제 통과 시 true)
+const conceptDone = computed(() => !!tasks.value.find((t) => t.key === "concept")?.completed);
+
+// 확인 문제 통과 → 진도·미션 보상 상태 갱신 (보상은 미션 탭에서 클릭해 수령)
+async function onConceptPassed() {
+  await loadCourse();
+  await loadRewards();
 }
 
 function selectTab(key) {
   activeTab.value = key;
-  if (key === "info") completeConcept();
 }
 
 async function claimReward(taskKey) {

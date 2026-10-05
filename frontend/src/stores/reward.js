@@ -31,6 +31,8 @@ export const useRewardStore = defineStore("reward", () => {
       const { data } = await client.post(`/rewards/${id}/claim`);
       items.value = items.value.filter((item) => item.id !== id);
       applyProfile(data.profile);
+      // 수령으로 레벨이 오르면 서버가 레벨업 보상을 새로 만들므로 목록을 다시 불러온다
+      await fetchPending().catch(() => {});
     } finally {
       claiming.value = false;
     }
@@ -44,6 +46,8 @@ export const useRewardStore = defineStore("reward", () => {
       const { data } = await client.post("/rewards/claim-all");
       items.value = [];
       applyProfile(data.profile);
+      // 일괄 수령으로 생긴 레벨업 보상을 바로 표시
+      await fetchPending().catch(() => {});
     } finally {
       claiming.value = false;
     }
