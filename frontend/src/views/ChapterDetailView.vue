@@ -176,11 +176,44 @@
             <p v-if="runError" class="sq-chapter__error">{{ runError }}</p>
           </form>
 
-          <div v-if="hintsOpen" class="sq-practice__hints">
+          <!-- 단계별 힌트: 한 번에 하나씩 펼쳐 스스로 생각할 시간을 준다 -->
+          <div v-if="hintsOpen" class="sq-hints">
             <p v-if="hintsLoading" class="sq-chapter__status">힌트 불러오는 중...</p>
-            <ol v-else>
-              <li v-for="(hint, i) in hints" :key="i">{{ hint }}</li>
-            </ol>
+            <p v-else-if="!hints.length" class="sq-chapter__status">이 레벨에는 힌트가 없습니다.</p>
+            <template v-else>
+              <div class="sq-hints__head">
+                <span class="sq-hints__title">
+                  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                  {{ TIER_META[selectedTier].label }} 레벨 힌트
+                </span>
+                <span class="sq-hints__count">{{ revealedCount }} / {{ hints.length }}</span>
+              </div>
+              <div class="sq-hints__bar" aria-hidden="true">
+                <span
+                  v-for="(hint, i) in hints"
+                  :key="i"
+                  class="sq-hints__dot"
+                  :class="{ 'is-on': i < revealedCount }"
+                ></span>
+              </div>
+              <ol class="sq-hints__list">
+                <li v-for="(hint, i) in hints.slice(0, revealedCount)" :key="i" class="sq-hints__item">
+                  <span class="sq-hints__step">힌트 {{ i + 1 }}</span>
+                  <p class="sq-hints__text">{{ hint }}</p>
+                </li>
+              </ol>
+              <div class="sq-hints__actions">
+                <button
+                  v-if="revealedCount < hints.length"
+                  type="button"
+                  class="sq-btn sq-btn--ghost"
+                  @click="revealedCount++"
+                >
+                  다음 힌트 보기 ({{ revealedCount + 1 }}/{{ hints.length }})
+                </button>
+                <p v-else class="sq-hints__done">모든 힌트를 확인했습니다. 직접 시도해 보세요!</p>
+              </div>
+            </template>
           </div>
         </template>
         <p v-else class="sq-chapter__status">이 과목의 실습은 준비 중입니다.</p>
@@ -188,8 +221,13 @@
 
       <template #result>
         <template v-if="practiceSupported">
-          <p v-if="!lastResult" class="sq-chapter__status">아직 실행 결과가 없습니다.</p>
-          <div v-else class="sq-practice__result">
+          <!-- 통과한 레벨은 다른 레벨로 갔다 와도·새로고침해도 통과 표시를 유지 (서버 기록 기준) -->
+          <p v-if="selectedTierCleared" class="sq-practice__cleared">
+            ✅ 이 레벨은 통과했습니다
+          </p>
+          <p v-if="!lastResult && !selectedTierCleared" class="sq-chapter__status">아직 실행 결과가 없습니다.</p>
+          <!-- lastResult가 있을 때만 렌더링 (통과 레벨 재선택 시 lastResult=null → v-else면 null.success 오류로 화면 멈춤) -->
+          <div v-else-if="lastResult" class="sq-practice__result">
             <span class="sq-badge" :class="lastResult.success ? 'sq-badge--success' : 'sq-badge--danger'">
               {{ lastResult.success ? "성공" : "실패" }}
             </span>
@@ -287,6 +325,10 @@ const selectedTier = ref("low");
 // 서버 응답 전 기본값: 하만 열림
 const tierList = ref(TIER_ORDER.map((key, i) => ({ key, unlocked: i === 0, cleared: false })));
 const tierNotice = ref("");
+// 현재 선택한 레벨의 통과 여부 (서버의 tier 상태 기준)
+const selectedTierCleared = computed(
+  () => !!tierList.value.find((t) => t.key === selectedTier.value)?.cleared
+);
 const userInput = ref("");
 const running = ref(false);
 const runError = ref("");
@@ -296,6 +338,8 @@ const hintsOpen = ref(false);
 const hintsLoading = ref(false);
 const hints = ref([]);
 const hintsCache = {};
+// 펼친 힌트 개수 (힌트를 열면 1개부터, 레벨을 바꾸면 다시 1개부터)
+const revealedCount = ref(1);
 
 async function loadCourse() {
   const { data } = await client.get(`/courses/${slug}`);
@@ -323,7 +367,10 @@ async function fetchHints() {
 
 function toggleHints() {
   hintsOpen.value = !hintsOpen.value;
-  if (hintsOpen.value) fetchHints();
+  if (hintsOpen.value) {
+    revealedCount.value = 1;
+    fetchHints();
+  }
 }
 
 function selectTier(key) {
@@ -331,6 +378,7 @@ function selectTier(key) {
   if (!tier?.unlocked || selectedTier.value === key) return;
   selectedTier.value = key;
   tierNotice.value = "";
+  revealedCount.value = 1;
   if (hintsOpen.value) fetchHints();
 }
 
@@ -556,18 +604,102 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.sq-practice__hints {
+/* 단계별 힌트 */
+.sq-hints {
   width: 100%;
-  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
   border: 1px solid var(--sq-card-border);
+  border-left: 3px solid var(--sq-color-accent);
   background: var(--sq-color-accent-subtle);
-  font-size: 13px;
-  line-height: 1.6;
 }
 
-.sq-practice__hints ol {
+.sq-hints__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sq-hints__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sq-text-main);
+}
+
+.sq-hints__count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sq-color-accent);
+}
+
+.sq-hints__bar {
+  display: flex;
+  gap: 4px;
+}
+
+.sq-hints__dot {
+  flex: 1;
+  height: 4px;
+  background: var(--sq-card-border);
+}
+
+.sq-hints__dot.is-on {
+  background: var(--sq-color-accent);
+}
+
+.sq-hints__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.sq-hints__item {
+  padding: 10px 12px;
+  background: var(--sq-bg-card);
+  border: 1px solid var(--sq-card-border);
+}
+
+.sq-hints__step {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 1px 8px;
+  background: var(--sq-color-accent);
+  color: var(--sq-color-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sq-hints__text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sq-text-main);
+  white-space: pre-wrap;
+}
+
+.sq-hints__done {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sq-color-accent);
+}
+
+.sq-practice__cleared {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-left: 4px solid var(--sq-badge-submitted-text);
+  background: var(--sq-badge-submitted-bg);
+  color: var(--sq-text-main);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .sq-practice__result {

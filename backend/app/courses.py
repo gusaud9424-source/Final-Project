@@ -235,12 +235,15 @@ def practice_tiers(slug):
     return jsonify(tiers=tier_states(cleared))
 
 
+_TIER_NAMES = {"low": "Low", "medium": "Medium", "high": "High", "impossible": "Impossible"}
+
+
 def _roll_tier_reward(user_id, course, tier):
     """레벨 클리어 보상 생성(보물상자 수령). 같은 레벨은 한 번만 생성된다."""
     return roll_pending(
         user_id,
         f"practice_{tier}",
-        f"{course.title} 실습 {TIER_LABELS[tier]} 레벨",
+        f"{course.title} {TIER_LABELS[tier]}({_TIER_NAMES[tier]})",   # 예: Command Injection 하(Low)
         ref=f"practice:{course.slug}:{tier}",
         course_slug=course.slug,
     )
