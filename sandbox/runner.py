@@ -70,7 +70,9 @@ def _run_sqlite(req):
 
 def run_request(req):
     reset_state()
-    timeout = min(req.get("timeout_sec") or MAX_TIMEOUT_SEC, MAX_TIMEOUT_SEC)
+    # 백엔드는 "timeout" 키로 보낸다("timeout_sec" 도 호환). 어떤 값이 와도 MAX_TIMEOUT_SEC 를 넘지 않는다.
+    requested = req.get("timeout") or req.get("timeout_sec") or MAX_TIMEOUT_SEC
+    timeout = min(requested, MAX_TIMEOUT_SEC) if isinstance(requested, (int, float)) else MAX_TIMEOUT_SEC
     mode = req.get("mode")
 
     if mode == "sqlite":

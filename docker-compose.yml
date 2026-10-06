@@ -74,7 +74,7 @@ services:
     network_mode: "none"
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=16m  # 쓰기 가능한 유일한 경로, 용량 상한
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
