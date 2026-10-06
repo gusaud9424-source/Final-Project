@@ -244,7 +244,7 @@ async function handleEnroll(item) {
 // 수강 중인 과목 취소 (확인 후 DELETE)
 async function handleCancel(item) {
   if (!item.enrolled || pending.has(item.id)) return;
-  if (!window.confirm(`'${item.title}' 수강을 취소할까요?\n학습 진도는 보존되어 다시 수강하면 이어서 진행됩니다.`)) return;
+  if (!window.confirm(`'${item.title}' 수강을 취소할까요?\n다시 수강신청하면 진도는 처음(0%)부터 시작됩니다. 이미 받은 보상은 유지됩니다.`)) return;
 
   errorMessage.value = "";
   pending.add(item.id);
