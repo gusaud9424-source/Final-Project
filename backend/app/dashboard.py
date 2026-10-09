@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify
 from sqlalchemy.orm import joinedload, selectinload
 
 from .models import TASK_KEYS, Enrollment, TaskProgress, User
-from .progress import PROGRESS_KEYS
+from .progress import PROGRESS_KEYS, overall_progress_total
 from .progress import PROGRESS_QUERY_KEYS, current_user, effective_task_rows, progress_rows, progress_summary
 
 bp = Blueprint("dashboard", __name__, url_prefix="/api/v1")
@@ -47,7 +47,8 @@ def _student_dashboard(user):
     )
     done = _task_map([user.id])
     courses = [_serialize_course(e, done[(user.id, e.course_id)]) for e in enrollments]
-    total_tasks = sum(c["total"] for c in courses)
+    # 전체 진도율: 수강 여부와 관계없이 전체 과목 × 4레벨 기준 (8과목 모두 4레벨 통과 = 100%)
+    total_tasks = overall_progress_total()
     completed_tasks = sum(c["completed"] for c in courses)
     percent = round(completed_tasks / total_tasks * 100) if total_tasks else 0
     return jsonify(

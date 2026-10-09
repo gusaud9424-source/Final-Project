@@ -11,7 +11,7 @@
       <div class="sq-chapters__header-text">
         <h1 class="sq-chapters__title">학습 진도</h1>
         <p class="sq-chapters__subtitle">
-          초급 → 중급 → 고급 순서로 학습하세요. 진도율은 실습 레벨(하 · 중 · 상 · 안전)을 통과할 때마다 올라가며, 4레벨을 모두 통과하면 100%입니다.
+          초급 → 중급 → 고급 순서로 학습하세요. 진도율은 실습 레벨(하 · 중 · 상 · 안전)을 통과할 때마다 올라갑니다. 8개 과목을 모두 수강하고 각 과목의 4레벨을 전부 통과하면 전체 100%입니다.
         </p>
       </div>
 
@@ -201,11 +201,11 @@ const groups = computed(() =>
   })).filter((g) => g.items.length)
 );
 
-// 전체 진도율: 수강 중인 과목의 실습 레벨 통과 합계 기준 (대시보드 학습 요약과 동일한 계산)
+// 전체 진도율: 전체 과목(8개) × 4레벨 기준 — 모두 수강하고 전부 통과해야 100% (대시보드와 같은 계산)
 const overall = computed(() => {
   const enrolled = courses.value.filter((c) => c.enrolled);
   const completed = enrolled.reduce((sum, c) => sum + c.completed, 0);
-  const total = enrolled.reduce((sum, c) => sum + c.total, 0);
+  const total = courses.value.length * STEP_TOTAL;
   return {
     enrolled: enrolled.length,
     completed,

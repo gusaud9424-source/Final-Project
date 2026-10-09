@@ -310,7 +310,7 @@ def progress_overview():
                 if key in steps:
                     funnel[key] += 1
 
-        total_steps = len(user_enrollments) * PROGRESS_TOTAL
+        total_steps = len(courses) * PROGRESS_TOTAL  # 전체 과목 × 4레벨
         overall = round(completed_sum / total_steps * 100) if total_steps else 0
         candidates = [v for v in (last_task.get(s.id), last_point.get(s.id)) if v]
         last_activity = max(candidates) if candidates else None
@@ -458,7 +458,7 @@ def student_detail(user_id):
         })
 
     enrolled_count = len(enrollments)
-    total_steps = enrolled_count * PROGRESS_TOTAL
+    total_steps = len(courses) * PROGRESS_TOTAL  # 전체 과목 × 4레벨
     percent = round(completed_steps / total_steps * 100) if total_steps else 0
 
     # 활동 시각 모음 → 마지막 활동 · 학습한 날 · 주간 추이

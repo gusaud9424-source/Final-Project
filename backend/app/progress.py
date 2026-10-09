@@ -4,7 +4,7 @@ from flask import session
 from sqlalchemy.exc import IntegrityError
 
 from . import db
-from .models import TASK_KEYS, TaskProgress, User
+from .models import TASK_KEYS, Course, TaskProgress, User
 
 TASK_TOTAL = len(TASK_KEYS)
 TASK_TITLES = {
@@ -153,6 +153,12 @@ def progress_summary(done):
         "total": PROGRESS_TOTAL,
         "percent": round(completed / PROGRESS_TOTAL * 100),
     }
+
+
+def overall_progress_total():
+    """전체 진도율 분모: 전체 과목(수강신청 화면의 8개 취약점) × 4레벨
+    → 8과목을 모두 수강하고 각 과목 4레벨을 전부 통과해야 100%"""
+    return Course.query.filter(Course.slug.isnot(None)).count() * PROGRESS_TOTAL
 
 
 def tier_progress_keys(cleared):
