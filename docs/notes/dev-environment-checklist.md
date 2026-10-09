@@ -6,9 +6,9 @@
 | 2 | Docker Engine + Compose v2 | ✅ | `docker --version && docker compose version` |
 | 3 | docker-compose.yml (5서비스) | ✅ | `docker compose config --services` |
 | 4 | 컨테이너 기동/헬스체크 | ✅ | `docker compose ps` |
-| 5 | Nginx 라우팅 (/api /pdf /practice) | ✅ | `curl localhost:8090/api/health`<br>`curl localhost:8090/pdf/health`<br>`curl localhost:8090/practice/health` |
+| 5 | Nginx 라우팅 (/api) | ✅ | `curl localhost:8090/api/health`<br>(2026-10-09: `/pdf` · `/practice` 경로는 쓰이지 않아 삭제) |
 | 6 | MariaDB 스키마+시드 (Flask-Migrate) | ✅ | `docker compose exec db mariadb -uappuser -papppass webseclab -e "SELECT * FROM users;"` |
-| 7 | Redis 세션 연동 | ✅ | `curl -b/-c cookie localhost:8090/api/session-test` (hits 증가 확인) |
+| 7 | Redis 세션 연동 | ✅ | 로그인 후 새로고침해도 로그인 유지 확인<br>(2026-10-09: 디버그용 `/api/session-test` 삭제) |
 | 8 | Sandbox 격리 (network=none, read-only) | ✅ | `docker inspect final-prj-sandbox-1 --format '{{.HostConfig.NetworkMode}} {{.HostConfig.ReadonlyRootfs}}'` → `none true` |
 | 9 | GitHub 브랜치 전략 + 초기 커밋 | ✅ | `git branch -a` → main, develop / `git log --oneline` |
 | 10 | 아키텍처 다이어그램 | ✅ | `docs/architecture/architecture.md` (개인 프로젝트 → 셀프 확정) |
