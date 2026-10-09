@@ -247,8 +247,8 @@
 
       <template #explanation>
         <dl v-if="detail" class="sq-info">
-          <dt>공격 예시</dt>
-          <dd>{{ detail.exploit }}</dd>
+          <dt>공격 방법</dt>
+          <dd>위 [힌트 보기]에서 단계별로 확인하세요.</dd>
           <dt>방어 방법</dt>
           <dd>{{ detail.defense }}</dd>
         </dl>

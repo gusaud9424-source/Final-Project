@@ -182,13 +182,10 @@
             </article>
           </div>
 
-          <article v-if="detail" class="sq-guide-card sq-guide-card--wide">
-            <span class="sq-guide-card__label"><i class="bi bi-code-slash" aria-hidden="true"></i> 공격 예시 (참고)</span>
-            <p class="sq-guide-card__text">
-              <template v-for="(part, i) in splitCode(detail.exploit)" :key="i">
-                <code v-if="part.code">{{ part.text }}</code><template v-else>{{ part.text }}</template>
-              </template>
-            </p>
+          <!-- 구체적인 공격 입력은 과목 정보에 바로 노출하지 않고 실습의 단계별 힌트로만 제공 -->
+          <article class="sq-guide-card sq-guide-card--wide sq-guide-card--soft">
+            <span class="sq-guide-card__label"><i class="bi bi-lightbulb" aria-hidden="true"></i> 공격 방법은?</span>
+            <p class="sq-guide-card__text">실습 탭에서 레벨을 고른 뒤 [힌트 보기]로 한 단계씩 확인하세요. 스스로 시도해 보는 것이 가장 빨리 배우는 방법입니다.</p>
           </article>
         </template>
 
@@ -229,7 +226,6 @@ const TABS = [
 ];
 const INFO_FIELDS = [
   { key: "summary", label: "설명" },
-  { key: "exploit", label: "공격 예시" },
   { key: "defense", label: "방어 방법" },
 ];
 const DIFFICULTY_TONE = { 초급: "success", 중급: "warning", 고급: "danger" };
@@ -266,7 +262,7 @@ function rewardState(key) {
 
 // 수령 대기 중인 보상 개수 (미션 탭에서 받을 수 있는 보상)
 const claimableCount = computed(() =>
-  Object.values(rewards.value).filter((r) => r.status === "pending" && r.claimAt !== "chest").length
+  Object.values(rewards.value).filter((r) => r.status === "pending").length
 );
 
 // 백틱(`)으로 감싼 구간을 code 조각으로 분리 (v-html 미사용)

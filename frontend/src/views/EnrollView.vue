@@ -81,7 +81,6 @@
 
               <div v-if="expanded.has(row.id)" class="sq-lecture-detail">
                 <p><strong>설명</strong> {{ row.detail.summary }}</p>
-                <p><strong>공격 예시</strong> {{ row.detail.exploit }}</p>
                 <p><strong>방어 방법</strong> {{ row.detail.defense }}</p>
               </div>
             </article>
@@ -146,7 +145,6 @@
 
                   <div v-if="expanded.has(child.id)" class="sq-lecture-detail">
                     <p><strong>설명</strong> {{ child.detail.summary }}</p>
-                    <p><strong>공격 예시</strong> {{ child.detail.exploit }}</p>
                     <p><strong>방어 방법</strong> {{ child.detail.defense }}</p>
                   </div>
                 </div>

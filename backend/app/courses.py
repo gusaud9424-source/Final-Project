@@ -4,7 +4,6 @@ from flask import Blueprint, jsonify, request, session
 from sqlalchemy.exc import IntegrityError
 
 from . import db, limiter
-from .course_content import DEFENSE_QUIZZES, public_quiz
 from .models import TASK_KEYS, Course, Enrollment, Reward
 from .practice_builders import PRACTICE_BUILDERS
 from .quiz_bank import QUIZ_BANKS
@@ -72,7 +71,6 @@ def course_detail(slug):
         },
         tasks=tasks,
         progress=progress_summary(done),
-        quiz=public_quiz(course.slug),
     )
 
 
@@ -156,40 +154,6 @@ def concept_check_submit(slug):
 def complete_concept(slug):
     """이전 방식(과목 정보 탭 열람만으로 완료)은 사용하지 않는다 — 확인 문제를 통과해야 완료"""
     return jsonify(message="개념 확인 문제를 풀어 3문항 이상 맞혀야 완료됩니다."), 400
-
-
-@bp.post("/<slug>/quiz")
-@limiter.limit("10 per minute")
-def submit_quiz(slug):
-    user, course, error = _load_enrolled_course(slug)
-    if error:
-        return error
-
-    quiz = DEFENSE_QUIZZES.get(course.slug)
-    if not quiz:
-        return jsonify(message="이 과목에는 퀴즈가 없습니다."), 404
-
-    payload = request.get_json(silent=True) or {}
-    answer = payload.get("answer")
-    # bool 은 int 하위 타입이므로 명시적으로 제외
-    if not isinstance(answer, int) or isinstance(answer, bool) or not 0 <= answer < len(quiz["options"]):
-        return jsonify(message="올바른 보기를 선택하세요."), 400
-
-    if answer != quiz["answer"]:
-        return jsonify(correct=False, explanation=quiz["explanation"])
-
-    mark_task_complete(user.id, course.id, "defense")
-    # 미션 보상은 과목별 고정 1종, 미수령 상태로 생성(수령은 과목 상세 > 미션 탭에서)
-    rows = roll_pending(
-        user.id, "mission", f"{course.title} 미션", ref=f"mission:{course.slug}", course_slug=course.slug
-    )
-    reward = rows[0] if rows else None
-    return jsonify(
-        correct=True,
-        rewarded=reward is not None,
-        rewardType=reward.type if reward else None,
-        amount=reward.amount if reward else None,
-    )
 
 
 @bp.get("/<slug>/practice/hints")
@@ -491,8 +455,6 @@ def _task_reward_state(user_id, course, task_key, done=True):
         pending = any(r.claimed_at is None for r in shown)
         return {
             "status": "pending" if pending else "claimed",
-            # 수령 위치: 미션 탭(mission) / 헤더 보물상자(chest)
-            "claimAt": "mission" if source in COURSE_REWARD_SOURCES else "chest",
             "items": [{"type": r.type, "amount": r.amount, "claimed": r.claimed_at is not None} for r in shown],
         }
 

@@ -10,3 +10,14 @@ venv/
 node_modules/
 frontend/dist/
 docker-compose.override.yml
+
+# ── 개인 작업 · 참고 자료 (저장소에 올리지 않음) ──
+CSV/
+Resources/
+work/
+Claude outputs/
+docs/resources-src/
+# 외부 서비스 화면 캡처 (디자인 참고용, 로컬 보관)
+docs/references/
+# 개인 Claude 설정
+.claude/
