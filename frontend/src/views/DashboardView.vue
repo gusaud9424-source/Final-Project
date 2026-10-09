@@ -20,12 +20,28 @@
         </p>
       </div>
       <div v-if="!authStore.isAdmin" class="sq-dashboard__head-actions">
-        <button type="button" class="sq-dashboard__attendance-btn" @click="openAttendance">
-          <i class="bi bi-calendar-check" aria-hidden="true"></i> 출석 체크
+        <!-- 오늘 출석을 마치면 버튼을 잠가 출석판이 다시 열리지 않게 함 -->
+        <button
+          type="button"
+          class="sq-dashboard__attendance-btn"
+          :disabled="attendedToday"
+          @click="openAttendance"
+        >
+          <template v-if="attendedToday">
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i> 오늘 출석 완료
+          </template>
+          <template v-else>
+            <i class="bi bi-calendar-check" aria-hidden="true"></i> 출석 체크
+          </template>
         </button>
         <router-link to="/chapters" class="sq-dashboard__cta">학습 진도 보러 가기</router-link>
       </div>
     </div>
+
+    <!-- 출석 완료 직후 출석판을 닫고 결과만 잠깐 안내 -->
+    <p v-if="attendanceNotice" class="sq-dashboard__notice" role="status">
+      <i class="bi bi-check-circle-fill" aria-hidden="true"></i> {{ attendanceNotice }}
+    </p>
 
     <StudentsOverview v-if="authStore.isAdmin" />
 
@@ -109,12 +125,12 @@
       </template>
     </template>
 
-    <AttendanceBoard v-if="attendanceOpen" @close="attendanceOpen = false" />
+    <AttendanceBoard v-if="attendanceOpen" @close="attendanceOpen = false" @claimed="onAttendanceClaimed" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
@@ -126,15 +142,35 @@ import { useProfileStore } from "@/stores/profile";
 const authStore = useAuthStore();
 const profileStore = useProfileStore();
 const attendanceOpen = ref(false);
+// 오늘 출석 완료(또는 14일 모두 완료) 여부
+const attendedToday = ref(false);
 
 async function openAttendance() {
+  if (attendedToday.value) return;
   attendanceOpen.value = true;
 }
+
+// 출석 완료 → 출석판 닫기 + 적립 결과 4초간 표시
+const attendanceNotice = ref("");
+let noticeTimer = null;
+
+function onAttendanceClaimed(data) {
+  attendanceOpen.value = false;
+  attendedToday.value = true;
+  attendanceNotice.value = `${data.day}일차 출석 완료! 포인트 +${data.amount}P 적립`;
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => {
+    attendanceNotice.value = "";
+  }, 4000);
+}
+
+onUnmounted(() => clearTimeout(noticeTimer));
 
 async function checkAttendance() {
   try {
     const { data } = await client.get("/attendance");
     profileStore.points = data.points;
+    attendedToday.value = data.claimedToday || data.completed >= 14;
     if (data.canClaimToday) attendanceOpen.value = true;
   } catch {
     // 출석 조회 실패는 대시보드 로딩을 막지 않는다
@@ -215,6 +251,19 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
+.sq-dashboard__notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--sq-card-border);
+  background: var(--sq-badge-submitted-bg);
+  color: var(--sq-badge-submitted-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .sq-dashboard__attendance-btn {
   padding: 12px 18px;
   border: 1px solid var(--sq-color-accent);
@@ -227,8 +276,15 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.sq-dashboard__attendance-btn:hover {
+.sq-dashboard__attendance-btn:hover:not(:disabled) {
   background: var(--sq-color-accent-subtle);
+}
+
+.sq-dashboard__attendance-btn:disabled {
+  border-color: var(--sq-badge-submitted-text);
+  background: var(--sq-badge-submitted-bg);
+  color: var(--sq-badge-submitted-text);
+  cursor: default;
 }
 
 .sq-dashboard__status {
