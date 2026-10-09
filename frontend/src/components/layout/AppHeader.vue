@@ -61,21 +61,11 @@
           </p>
           <p class="sq-profile__points">보유 포인트 {{ profileStore.points }}P</p>
 
-          <form class="sq-profile__form" @submit.prevent="saveNickname">
-            <label class="sq-profile__label" for="sq-nickname-input">닉네임</label>
-            <input
-              id="sq-nickname-input"
-              v-model="nicknameInput"
-              class="sq-profile__input"
-              type="text"
-              maxlength="20"
-              placeholder="닉네임"
-            />
-            <button type="submit" class="sq-profile__save" :disabled="nicknameSaving">
-              {{ nicknameSaving ? "저장 중..." : "변경" }}
-            </button>
-          </form>
-          <p v-if="nicknameError" class="sq-profile__error">{{ nicknameError }}</p>
+          <!-- 닉네임 등 회원정보 변경은 마이페이지에서 처리 -->
+          <router-link class="sq-profile__mypage" to="/mypage" @click="showProfile = false">
+            <i class="bi bi-person-gear" aria-hidden="true"></i>
+            마이페이지 · 회원정보 변경
+          </router-link>
         </div>
       </div>
     </div>
@@ -90,7 +80,6 @@ import RewardChest from "@/components/layout/RewardChest.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useProfileStore } from "@/stores/profile";
 import { useRewardStore } from "@/stores/reward";
-import { getErrorMessage } from "@/api/errors";
 
 const authStore = useAuthStore();
 const profileStore = useProfileStore();
@@ -103,9 +92,6 @@ const isDashboardActive = computed(() => route.path.startsWith("/dashboard"));
 
 const profileWrapRef = ref(null);
 const showProfile = ref(false);
-const nicknameInput = ref("");
-const nicknameSaving = ref(false);
-const nicknameError = ref("");
 
 const xpPercent = computed(() => {
   if (!profileStore.xpForNextLevel) return 100;
@@ -114,22 +100,8 @@ const xpPercent = computed(() => {
 
 async function toggleProfile() {
   showProfile.value = !showProfile.value;
-  if (showProfile.value) {
-    nicknameError.value = "";
-    if (!profileStore.loaded) await profileStore.fetchProfile();
-    nicknameInput.value = profileStore.nickname;
-  }
-}
-
-async function saveNickname() {
-  nicknameSaving.value = true;
-  nicknameError.value = "";
-  try {
-    await profileStore.updateNickname(nicknameInput.value);
-  } catch (error) {
-    nicknameError.value = getErrorMessage(error, "닉네임 변경에 실패했습니다.");
-  } finally {
-    nicknameSaving.value = false;
+  if (showProfile.value && !profileStore.loaded) {
+    await profileStore.fetchProfile();
   }
 }
 
@@ -314,47 +286,28 @@ async function handleLogout() {
   color: var(--sq-text-sub);
 }
 
-.sq-profile__form {
+
+
+
+
+
+.sq-profile__mypage {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.sq-profile__label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--sq-text-sub);
-}
-
-.sq-profile__input {
-  padding: 8px 10px;
-  border: 1px solid var(--sq-card-border);
-  border-radius: var(--sq-radius-none);
-  font-size: 14px;
-  font-family: var(--sq-font-family);
-}
-
-.sq-profile__save {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   margin-top: 4px;
   padding: 8px 12px;
-  border: none;
+  border: 1px solid var(--sq-color-accent);
   border-radius: var(--sq-radius-none);
-  background: var(--sq-color-accent);
-  color: var(--sq-color-on-accent);
+  color: var(--sq-color-accent);
   font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
+  text-decoration: none;
 }
 
-.sq-profile__save:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.sq-profile__mypage:hover {
+  background: var(--sq-color-accent-subtle);
 }
 
-.sq-profile__error {
-  margin: 0;
-  font-size: 12px;
-  color: var(--sq-badge-absent-text);
-}
 </style>

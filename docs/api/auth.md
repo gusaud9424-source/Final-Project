@@ -27,6 +27,9 @@
 | `/api/v1/auth/reset-password/send-sms-code` | POST | 아니오 | 필요 | 5/min | `{"username": "user01", "phone": "01000000000"}` | `{"message": "입력하신 정보가 유효하면 인증코드를 발송했습니다."}` | - |
 | `/api/v1/auth/reset-password/verify-codes` | POST | 아니오 | 필요 | 10/min | `{"username": "user01", "email_code": "000000", "sms_code": "111111"}` | `{"message": "인증이 완료되었습니다. 새 비밀번호를 설정하세요."}` | 400(코드 불일치·만료·5회 초과 — 둘 중 하나라도 실패 시) |
 | `/api/v1/auth/reset-password/confirm` | POST | 아니오(단, 직전 `verify-codes` 성공 세션 필요) | 필요 | 10/min | `{"username": "user01", "new_password": "********"}` | `{"message": "비밀번호가 변경되었습니다."}` | 400(비밀번호 8자 미만 / 인증 미완료) |
+| `/api/v1/profile/account` | GET | 예(세션) | 불필요 | 없음 | - | `{"username": "user01", "role": "student", "name": "홍길동", "nickname": "", "email": "user01@example.com", "phone": "01000000000", "createdAt": "2026-10-09T13:00:00"}` | 401(미로그인) |
+| `/api/v1/profile/account` | PATCH | 예(세션) | 필요 | 5/min | `{"name": "홍길동", "nickname": "길동_01", "email": "user01@example.com", "phone": "01000000000", "current_password": "********"}` | 위 계정 정보 + `"message"` (변경 없으면 `"변경된 내용이 없습니다."`) | 400(현재 비밀번호 불일치·형식 오류) / 409(닉네임·이메일 중복) / 401 |
+| `/api/v1/profile/password` | POST | 예(세션) | 필요 | 5/min | `{"current_password": "********", "new_password": "********"}` | `{"message": "비밀번호가 변경되었습니다."}` (성공 시 세션 ID 재발급) | 400(현재 비밀번호 불일치·규칙 위반·기존과 동일) / 401 |
 | `/api/v1/dashboard` | GET | 예(세션) | 불필요 | 없음 | - | student: `{"role": "student", "summary": {...}, "courses": [...]}` / admin: `{"role": "admin", "students": [...]}` | 401(미로그인) |
 | `/api/v1/admin/students` | GET | 예(세션, admin) | 불필요 | 없음 | - | `{"students": [{"id": 1, "name": "...", "email": "...", "courses": [...]}]}` | 401(미로그인) / 403(관리자 아님) |
 

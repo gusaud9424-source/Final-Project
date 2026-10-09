@@ -22,11 +22,6 @@ export const useProfileStore = defineStore("profile", () => {
     loaded.value = true;
   }
 
-  async function updateNickname(newNickname) {
-    const { data } = await client.patch("/profile", { nickname: newNickname });
-    nickname.value = data.nickname;
-  }
-
   return {
     nickname,
     level,
@@ -36,6 +31,5 @@ export const useProfileStore = defineStore("profile", () => {
     points,
     loaded,
     fetchProfile,
-    updateNickname,
   };
 });
