@@ -249,6 +249,22 @@ def _roll_tier_reward(user_id, course, tier):
     )
 
 
+# 화면을 열 때 자동으로 부르는 조회 · 초기화 · 판정 요청은 "공격 시도"가 아니다
+_NON_ATTEMPT_ACTIONS = {"info", "leak_token", "reset", "verify"}
+
+
+def _is_attempt(user_input):
+    """안전 레벨 통과 조건: 학생이 직접 공격을 1회 이상 시도했는지"""
+    if not isinstance(user_input, dict):
+        return bool(str(user_input).strip())
+    action = user_input.get("action")
+    if action in _NON_ATTEMPT_ACTIONS:
+        return False
+    if action == "render":  # XSS: 입력 없이 페이지만 다시 그리는 요청 제외
+        return bool(str(user_input.get("payload", "")).strip())
+    return True
+
+
 @bp.post("/<slug>/practice/run")
 @limiter.limit("90 per minute")  # Blind SQLi 등 반복 요청 실습을 위해 상향 (학습용 단일 사용자 기준)
 def run_practice(slug):
@@ -278,7 +294,7 @@ def run_practice(slug):
     # - 하·중·상: 공격 성공 시 통과
     # - 안전: 공격이 막히는 것을 직접 확인(1회 이상 시도)하면 통과
     tier_cleared = False
-    if difficulty == "impossible" or result.success:
+    if (difficulty == "impossible" and _is_attempt(user_input)) or result.success:
         mark_tier_cleared(user.id, course.id, difficulty)
         tier_cleared = True
 

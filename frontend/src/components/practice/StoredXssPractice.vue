@@ -72,6 +72,16 @@ async function call(input) {
   return data;
 }
 
+// 안전 레벨: 공격이 실행되지 않아 verify 판정이 오지 않으므로, 서버가 통과 처리하면 여기서 바로 화면에 알림
+const SAFE_TIER_MESSAGE =
+  "방어 확인 완료 — 입력한 < > 가 &lt; &gt; 로 인코딩되어 글자로만 표시되고 스크립트는 실행되지 않았습니다.";
+
+async function notifySafeTierCleared(data) {
+  if (!data.tierCleared) return;
+  emit("result", { ...data, output: SAFE_TIER_MESSAGE });
+  if (data.rewarded) await rewardStore.fetchPending();
+}
+
 async function load(action, extra = {}) {
   if (running.value) return;
   running.value = true;
@@ -84,6 +94,7 @@ async function load(action, extra = {}) {
       name.value = "";
       message.value = "";
     }
+    await notifySafeTierCleared(data);
   } catch (err) {
     error.value = getErrorMessage(err, "요청에 실패했습니다.");
   } finally {
