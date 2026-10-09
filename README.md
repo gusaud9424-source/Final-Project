@@ -182,6 +182,7 @@ Final-Project/
 | 남용 방지 | Flask-Limiter (로그인 분당 10회, 가입 · 인증코드 · 정보 변경 분당 5회) |
 | 계정 보호 | 아이디 찾기 · 비밀번호 찾기 응답에서 가입 여부 비노출, 인증코드 5분 만료 · 5회 오답 무효, 정보 변경 시 현재 비밀번호 재확인 |
 | 권한 | 역할은 서버가 결정(가입 시 `student` 고정), 관리자 API 역할 검사 |
+| 보안 응답 헤더 | Nginx 경로별 CSP(앱: `script-src 'self'` / API: `default-src 'none'` / XSS 실습 프레임: 인라인 허용 · 외부 통신 차단), `X-Frame-Options` · `frame-ancestors`(클릭재킹 방어), `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `server_tokens off` |
 | 감사 로그 | 관리자 작업 · 회원정보 변경 · 비밀번호 변경을 `[AUDIT]` 로그로 기록 (개인정보 값은 기록하지 않음) |
 
 ---

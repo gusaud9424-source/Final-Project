@@ -35,13 +35,7 @@
       <p class="sq-xss__caption">
         취약한 페이지 미리보기 — 격리된 iframe(sandbox)이라 SecuQuest 세션·쿠키에는 접근할 수 없습니다.
       </p>
-      <iframe
-        ref="frameRef"
-        class="sq-xss__frame"
-        sandbox="allow-scripts"
-        :srcdoc="html"
-        title="취약한 페이지 미리보기"
-      ></iframe>
+      <PracticeFrame ref="frameRef" class="sq-xss__frame" :html="html" title="취약한 페이지 미리보기" />
       <button type="button" class="sq-btn sq-btn--ghost sq-xss__source-toggle" @click="showSource = !showSource">
         {{ showSource ? "페이지 소스 숨기기" : "페이지 소스 보기" }}
       </button>
@@ -51,6 +45,7 @@
 </template>
 
 <script setup>
+import PracticeFrame from "@/components/practice/PracticeFrame.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
@@ -135,7 +130,7 @@ function resetBoard() {
 
 async function onMessage(event) {
   // 우리 iframe에서 온 판정 메시지만 처리
-  if (!frameRef.value || event.source !== frameRef.value.contentWindow) return;
+  if (!frameRef.value || event.source !== frameRef.value.getWindow()) return;
   if (event.data?.type !== "sq-xss" || typeof event.data.flag !== "string") return;
   if (verifying) return; // alert이 여러 번 호출돼도 한 번만 제출
   verifying = true;
