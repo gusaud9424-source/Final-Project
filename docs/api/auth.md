@@ -18,7 +18,7 @@
 | 엔드포인트 | 메서드 | 인증 필요 | CSRF | Rate limit | 요청 JSON | 응답 JSON (200) | 그 외 상태코드 |
 |---|---|---|---|---|---|---|---|
 | `/api/v1/auth/csrf` | GET | 아니오 | 불필요(토큰 발급) | 없음 | - | `{"csrf_token": "..."}` | - |
-| `/api/v1/auth/login` | POST | 아니오 | 필요 | 10/min | `{"username": "user01", "password": "********", "role": "student"}` | `{"id": 1, "username": "user01", "name": "홍길동", "role": "student", "email": "user01@example.com"}` | 401(자격 불일치·역할 불일치) |
+| `/api/v1/auth/login` | POST | 아니오 | 필요 | 10/min | `{"username": "user01", "password": "********", "role": "student"}` | `{"id": 1, "username": "user01", "name": "홍길동", "role": "student", "email": "user01@example.com"}` | 401(자격 불일치·역할 불일치, 실패 시 감사 로그 `login_failed` 기록) |
 | `/api/v1/auth/logout` | POST | 예(세션) | 필요 | 없음 | - | `{"message": "로그아웃되었습니다."}` | - |
 | `/api/v1/auth/me` | GET | 예(세션) | 불필요 | 없음 | - | `{"id": 1, "username": "user01", "name": "홍길동", "role": "student", "email": "user01@example.com"}` | 401(미로그인) |
 | `/api/v1/auth/find-id/send-code` | POST | 아니오 | 필요 | 5/min | `{"email": "user01@example.com"}` | `{"message": "입력하신 정보가 유효하면 인증코드를 발송했습니다."}` (계정 존재 여부와 무관하게 동일 응답) | - |
@@ -30,7 +30,7 @@
 | `/api/v1/profile/account` | GET | 예(세션) | 불필요 | 없음 | - | `{"username": "user01", "role": "student", "name": "홍길동", "nickname": "", "email": "user01@example.com", "phone": "01000000000", "createdAt": "2026-10-09T13:00:00"}` | 401(미로그인) |
 | `/api/v1/profile/account` | PATCH | 예(세션) | 필요 | 5/min | `{"name": "홍길동", "nickname": "길동_01", "email": "user01@example.com", "phone": "01000000000", "current_password": "********"}` | 위 계정 정보 + `"message"` (변경 없으면 `"변경된 내용이 없습니다."`) | 400(현재 비밀번호 불일치·형식 오류) / 409(닉네임·이메일 중복) / 401 |
 | `/api/v1/profile/password` | POST | 예(세션) | 필요 | 5/min | `{"current_password": "********", "new_password": "********"}` | `{"message": "비밀번호가 변경되었습니다."}` (성공 시 세션 ID 재발급) | 400(현재 비밀번호 불일치·규칙 위반·기존과 동일) / 401 |
-| `/api/v1/admin/audit-logs` | GET | 예(세션, admin) | 불필요 | 없음 | 쿼리: `action` · `q` · `page` | `{"total": 5, "page": 1, "pageSize": 50, "actions": [...], "items": [{"createdAt": "2026-10-09 18:12:05", "actor": "admin", "action": "delete_user", "actionLabel": "회원 삭제", "target": "victim", "detail": null, "ip": "..."}]}` | 400(알 수 없는 action) / 401 / 403 |
+| `/api/v1/admin/audit-logs` | GET | 예(세션, admin) | 불필요 | 없음 | 쿼리: `action` · `q` · `page` | `{"total": 5, "page": 1, "pageSize": 50, "loginFailures24h": 3, "actions": [...], "items": [{"createdAt": "2026-10-09 18:12:05", "actor": "admin", "action": "delete_user", "actionLabel": "회원 삭제", "target": "victim", "detail": null, "ip": "..."}]}` | 400(알 수 없는 action) / 401 / 403 |
 | `/api/v1/dashboard` | GET | 예(세션) | 불필요 | 없음 | - | student: `{"role": "student", "summary": {...}, "courses": [...]}` / admin: `{"role": "admin", "students": [...]}` | 401(미로그인) |
 | `/api/v1/admin/students` | GET | 예(세션, admin) | 불필요 | 없음 | - | `{"students": [{"id": 1, "name": "...", "email": "...", "courses": [...]}]}` | 401(미로그인) / 403(관리자 아님) |
 

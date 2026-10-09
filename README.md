@@ -180,7 +180,7 @@ Final-Project/
 | 쿠키 | HttpOnly · SameSite=Lax · 운영 모드에서 Secure |
 | 요청 위조 | Flask-WTF CSRFProtect (실습 페이지 제외), Axios 가 `X-CSRFToken` 자동 첨부 |
 | 남용 방지 | Flask-Limiter (로그인 분당 10회, 가입 · 인증코드 · 정보 변경 분당 5회) |
-| 계정 보호 | 아이디 찾기 · 비밀번호 찾기 응답에서 가입 여부 비노출, 인증코드 5분 만료 · 5회 오답 무효, 정보 변경 시 현재 비밀번호 재확인 |
+| 계정 보호 | 로그인 실패 기록(사유 구분, 관리자 24시간 실패 수 표시) · 없는 아이디도 bcrypt 비교로 응답 시간 통일, 아이디 찾기 · 비밀번호 찾기 응답에서 가입 여부 비노출, 인증코드 5분 만료 · 5회 오답 무효, 정보 변경 시 현재 비밀번호 재확인 |
 | 권한 | 역할은 서버가 결정(가입 시 `student` 고정), 관리자 API 역할 검사 |
 | 보안 응답 헤더 | Nginx 경로별 CSP(앱: `script-src 'self'` / API: `default-src 'none'` / XSS 실습 프레임: 인라인 허용 · 외부 통신 차단), `X-Frame-Options` · `frame-ancestors`(클릭재킹 방어), `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `server_tokens off` |
 | 감사 로그 | 관리자 작업 · 회원정보 변경 · 비밀번호 변경 · 비밀번호 찾기 재설정을 `audit_logs` 테이블(변경과 같은 트랜잭션)과 서버 로그에 기록, 관리자 [감사 로그] 탭에서 조회 (회원 삭제 후에도 보관, 개인정보 값은 기록하지 않음) |

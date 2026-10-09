@@ -11,7 +11,7 @@ from flask_wtf.csrf import generate_csrf
 from sqlalchemy.exc import IntegrityError
 
 from . import db, limiter
-from .audit import record_audit
+from .audit import record_audit, record_login_failure
 from .mailer import send_verification_email
 from .models import User, VerificationCode
 from .sms import send_verification_sms
@@ -93,6 +93,10 @@ def _try_send_sms(*args, **kwargs):
         current_app.logger.warning("sms send failed: %s", type(exc).__name__)
 
 
+# 없는 아이디 로그인 시 비교용 더미 해시 (실제 계정과 같은 cost 12)
+_DUMMY_HASH = bcrypt.hashpw(b"secuquest-dummy-password", bcrypt.gensalt(rounds=12))
+
+
 @bp.get("/csrf")
 def csrf_token():
     return jsonify(csrf_token=generate_csrf())
@@ -102,14 +106,21 @@ def csrf_token():
 @limiter.limit("10 per minute")
 def login():
     payload = request.get_json(silent=True) or {}
-    username = payload.get("username", "")
-    password = payload.get("password", "")
-    role = payload.get("role", "")
+    username = str(payload.get("username", ""))
+    password = str(payload.get("password", ""))
+    role = str(payload.get("role", ""))
 
     user = User.query.filter_by(username=username).first()
-    if not user or not bcrypt.checkpw(password.encode("utf-8"), user.password_hash.encode("utf-8")):
+    if not user:
+        # 없는 아이디도 bcrypt 비교를 한 번 해서 응답 시간을 맞춤 (시간 차이로 가입 여부를 알아내는 것 방지)
+        bcrypt.checkpw(password.encode("utf-8"), _DUMMY_HASH)
+        record_login_failure(username, None, "unknown_user")
+        return jsonify(message="아이디 또는 비밀번호가 올바르지 않습니다."), 401
+    if not bcrypt.checkpw(password.encode("utf-8"), user.password_hash.encode("utf-8")):
+        record_login_failure(username, user, "wrong_password")
         return jsonify(message="아이디 또는 비밀번호가 올바르지 않습니다."), 401
     if user.role != role:
+        record_login_failure(username, user, "role_mismatch")
         return jsonify(message="선택한 역할이 계정과 일치하지 않습니다."), 401
 
     session.clear()

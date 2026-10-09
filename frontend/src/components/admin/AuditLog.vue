@@ -25,6 +25,18 @@
       <span class="sq-audit__count">총 {{ total }}건</span>
     </div>
 
+    <!-- 최근 24시간 로그인 실패: 무작위 대입 시도 확인용, 누르면 로그인 실패만 보기 -->
+    <button
+      type="button"
+      class="sq-audit__alert"
+      :class="{ 'sq-audit__alert--warn': loginFailures24h > 0 }"
+      @click="showLoginFailures"
+    >
+      <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+      최근 24시간 로그인 실패 <strong>{{ loginFailures24h }}건</strong>
+      <span class="sq-audit__alert-link">로그인 실패만 보기</span>
+    </button>
+
     <p class="sq-audit__hint">
       <i class="bi bi-shield-check" aria-hidden="true"></i>
       서버 로그와 별도로 DB 에 보관됩니다. 회원이 삭제돼도 기록은 남고, 개인정보 값(이메일 · 번호 · 비밀번호)은 저장하지 않습니다.
@@ -54,7 +66,7 @@
               <span v-if="item.actorRole === 'admin'" class="sq-audit__role">관리자</span>
             </td>
             <td>
-              <span class="sq-audit__action" :class="{ 'sq-audit__action--danger': item.action === 'delete_user' }">
+              <span class="sq-audit__action" :class="{ 'sq-audit__action--danger': DANGER_ACTIONS.has(item.action) }">
                 {{ item.actionLabel }}
               </span>
             </td>
@@ -91,10 +103,17 @@ import { getErrorMessage } from "@/api/errors";
 // 상세(detail) 값을 읽기 쉬운 한국어로
 const FIELD_LABELS = { name: "이름", nickname: "닉네임", email: "이메일", phone: "휴대폰" };
 const VIA_LABELS = { email: "이메일 인증", sms: "휴대폰 인증" };
+const REASON_LABELS = {
+  unknown_user: "없는 아이디",
+  wrong_password: "비밀번호 틀림",
+  role_mismatch: "역할 불일치(학생/관리자)",
+};
+const DANGER_ACTIONS = new Set(["delete_user", "login_failed"]);
 
 const items = ref([]);
 const actions = ref([]);
 const total = ref(0);
+const loginFailures24h = ref(0);
 const page = ref(1);
 const pageSize = ref(50);
 const action = ref("");
@@ -114,6 +133,7 @@ function formatDetail(detail) {
       .join(" · ");
   }
   if (detail.startsWith("via=")) return VIA_LABELS[detail.slice(4)] || detail;
+  if (detail.startsWith("reason=")) return REASON_LABELS[detail.slice(7)] || detail;
   return detail;
 }
 
@@ -127,6 +147,7 @@ async function fetchLogs() {
     items.value = data.items;
     actions.value = data.actions;
     total.value = data.total;
+    loginFailures24h.value = data.loginFailures24h ?? 0;
     pageSize.value = data.pageSize;
   } catch (error) {
     errorMessage.value = getErrorMessage(error, "감사 로그를 불러오지 못했습니다.");
@@ -138,6 +159,12 @@ async function fetchLogs() {
 function search() {
   page.value = 1;
   fetchLogs();
+}
+
+function showLoginFailures() {
+  action.value = "login_failed";
+  keyword.value = "";
+  search();
 }
 
 function go(next) {
@@ -210,6 +237,33 @@ onMounted(fetchLogs);
   background: var(--sq-color-accent-subtle);
   font-size: 13px;
   color: var(--sq-text-sub);
+}
+
+.sq-audit__alert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--sq-card-border);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+  color: var(--sq-text-sub);
+  font-size: 13px;
+  font-family: var(--sq-font-family);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sq-audit__alert--warn {
+  border-color: var(--sq-badge-absent-text);
+  background: var(--sq-badge-absent-bg);
+  color: var(--sq-badge-absent-text);
+}
+
+.sq-audit__alert-link {
+  margin-left: auto;
+  font-weight: 600;
+  text-decoration: underline;
 }
 
 .sq-audit__btn {

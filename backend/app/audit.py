@@ -19,7 +19,12 @@ ACTION_LABELS = {
     "update_account": "회원정보 변경",
     "change_password": "비밀번호 변경",
     "reset_password_self": "비밀번호 찾기로 재설정",
+    "login_failed": "로그인 실패",
 }
+
+# 로그인 실패 사유 (관리자만 보는 기록이므로 구체적으로 남김. 화면 응답은 구분하지 않음)
+LOGIN_FAIL_REASONS = ("unknown_user", "wrong_password", "role_mismatch")
+ATTEMPT_USERNAME_MAX = 30  # 입력한 아이디는 이 길이까지만 저장 (아이디 칸에 비밀번호를 잘못 넣은 경우 노출 최소화)
 
 
 def _client_ip():
@@ -49,3 +54,29 @@ def record_audit(actor, action, target=None, detail=""):
         entry.ip,
     )
     return entry
+
+
+def record_login_failure(attempted_username, user, reason):
+    """로그인 실패 1건 기록 (변경 작업이 없으므로 여기서 바로 commit)
+
+    - 행위자: 실제 계정이 있으면 그 계정, 없으면 입력한 아이디만
+    - 기록 실패가 로그인 응답을 막지 않도록 예외는 서버 로그로만 남김
+    - 대량 시도는 로그인 Rate Limit(분당 10회/IP)이 먼저 막으므로 기록 폭증도 제한됨
+    """
+    entry = AuditLog(
+        actor_id=user.id if user else None,
+        actor_username=(user.username if user else str(attempted_username)[:ATTEMPT_USERNAME_MAX]) or None,
+        actor_role=user.role if user else None,
+        action="login_failed",
+        detail=f"reason={reason}",
+        ip=_client_ip(),
+    )
+    try:
+        db.session.add(entry)
+        db.session.commit()
+    except Exception as exc:  # 기록 실패해도 로그인 응답(401)은 그대로
+        db.session.rollback()
+        current_app.logger.error("audit write failed: %s", type(exc).__name__)
+    current_app.logger.warning(
+        "[AUDIT] actor_id=%s action=login_failed reason=%s ip=%s", entry.actor_id, reason, entry.ip
+    )

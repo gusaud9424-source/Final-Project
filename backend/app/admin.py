@@ -575,6 +575,11 @@ def list_audit_logs():
         )
 
     total = query.count()
+    # 최근 24시간 로그인 실패 수 (무작위 대입 시도 감지용, 필터와 무관하게 전체 기준)
+    since = datetime.utcnow() - timedelta(hours=24)
+    login_failures_24h = AuditLog.query.filter(
+        AuditLog.action == "login_failed", AuditLog.created_at >= since
+    ).count()
     rows = (
         query.order_by(AuditLog.id.desc())
         .offset((page - 1) * AUDIT_PAGE_SIZE)
@@ -585,6 +590,7 @@ def list_audit_logs():
         total=total,
         page=page,
         pageSize=AUDIT_PAGE_SIZE,
+        loginFailures24h=login_failures_24h,
         actions=[{"key": k, "label": v} for k, v in ACTION_LABELS.items()],
         items=[
             {
