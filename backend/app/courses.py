@@ -20,6 +20,7 @@ from .progress import (
     tier_states,
     TIER_LABELS,
     progress_summary,
+    tier_progress_keys,
     serialize_datetime,
 )
 from .rewards import COURSE_REWARD_SOURCES, COURSE_REWARD_TYPE, LEDGER_MODELS, RANGES, _apply_claim, _balance, _balance_after_claim, _reward_types, roll_pending
@@ -70,7 +71,7 @@ def course_detail(slug):
             "quizSetAvailable": course.slug in QUIZ_BANKS,
         },
         tasks=tasks,
-        progress=progress_summary(done),
+        progress=progress_summary(tier_progress_keys(cleared_tiers(user.id, course.id))),
     )
 
 

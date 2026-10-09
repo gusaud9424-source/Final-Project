@@ -174,12 +174,12 @@ export const COURSE_GUIDES = {
   },
 };
 
-// 미션 단계별 안내 (실습 공통)
+// 미션 단계별 안내 (실습 공통) — 미션은 보상용이며 진도율에는 포함되지 않는다(진도율 = 실습 레벨 통과)
 export const MISSION_GUIDE = {
   concept: {
     title: "개념 학습",
     desc: "과목 정보 탭에서 취약점의 원리·영향·방어 방법을 읽고, 하단의 개념 확인 문제 5개 중 3개 이상 맞히면 완료됩니다.",
-    reward: "보상 없음 · 진도만 반영",
+    reward: "과목별 경험치 또는 포인트",
   },
   practice: {
     title: "실습 성공",

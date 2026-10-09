@@ -4,7 +4,8 @@ from flask import Blueprint, jsonify
 from sqlalchemy.orm import joinedload, selectinload
 
 from .models import TASK_KEYS, Enrollment, TaskProgress, User
-from .progress import PROGRESS_QUERY_KEYS, current_user, effective_task_rows, progress_summary
+from .progress import PROGRESS_KEYS
+from .progress import PROGRESS_QUERY_KEYS, current_user, effective_task_rows, progress_rows, progress_summary
 
 bp = Blueprint("dashboard", __name__, url_prefix="/api/v1")
 
@@ -18,7 +19,8 @@ def _task_map(user_ids):
     rows = TaskProgress.query.filter(
         TaskProgress.user_id.in_(user_ids), TaskProgress.task_key.in_(PROGRESS_QUERY_KEYS)
     ).all()
-    for row in effective_task_rows(rows):
+    # 미션 완료(표시용) + 레벨 통과(진도율용)
+    for row in effective_task_rows(rows) + progress_rows(rows):
         done[(row.user_id, row.course_id)].add(row.task_key)
     return done
 
@@ -33,8 +35,8 @@ def _serialize_course(enrollment, done_keys):
         "description": course.description,
         "instructor": course.instructor,
         "schedule": course.schedule,
-        # 과목선택 화면의 단계별(개념·실습·미션) 완료 표시용
-        "doneKeys": [key for key in TASK_KEYS if key in done_keys],
+        # 학습 진도 화면의 레벨별(하 · 중 · 상 · 안전) 통과 표시 + 미션 완료 키
+        "doneKeys": [key for key in PROGRESS_KEYS + TASK_KEYS if key in done_keys],
         **progress_summary(done_keys),
     }
 

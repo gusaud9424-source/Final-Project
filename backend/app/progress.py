@@ -70,7 +70,7 @@ def mark_task_complete(user_id, course_id, task_key):
 # ─── 실습 레벨(하 → 중 → 상 → 안전) 진행 ───
 # 피드백 반영: 레벨을 섞지 않고 순서대로 학습하도록, 이전 레벨을 통과해야 다음 레벨이 열린다.
 # 별도 테이블 없이 task_progress 에 "tier_<레벨>" 키로 저장한다.
-# (진도율·관리자 집계는 TASK_KEYS 로 필터링하므로 이 키는 진도율에 섞이지 않는다)
+# 진도율은 이 레벨 통과 키(tier_*)로 계산한다 (아래 PROGRESS_KEYS)
 TIER_ORDER = ("low", "medium", "high", "impossible")
 TIER_LABELS = {"low": "하", "medium": "중", "high": "상", "impossible": "안전"}
 
@@ -138,13 +138,31 @@ def _upsert_progress(user_id, course_id, task_key):
     return record
 
 
+# ─── 진도율 ───
+# 진도율은 실습 레벨(하 · 중 · 상 · 안전) 통과만으로 계산한다. 과목당 4단계 = 100%.
+# 미션(개념 확인 · 실습 미션 · 퀴즈)은 보상용이며 진도율에 포함하지 않는다.
+PROGRESS_KEYS = tuple(_tier_key(t) for t in TIER_ORDER)
+PROGRESS_TOTAL = len(PROGRESS_KEYS)
+
+
 def progress_summary(done):
-    completed = sum(1 for key in TASK_KEYS if key in done)
+    """done: task_key 집합(또는 dict). tier_* 키만 진도로 센다."""
+    completed = sum(1 for key in PROGRESS_KEYS if key in done)
     return {
         "completed": completed,
-        "total": TASK_TOTAL,
-        "percent": round(completed / TASK_TOTAL * 100),
+        "total": PROGRESS_TOTAL,
+        "percent": round(completed / PROGRESS_TOTAL * 100),
     }
+
+
+def tier_progress_keys(cleared):
+    """cleared_tiers() 결과({"low", ...})를 진도 키 집합으로"""
+    return {_tier_key(t) for t in cleared}
+
+
+def progress_rows(rows):
+    """task_progress 행 중 진도율 대상(레벨 통과) 행만"""
+    return [row for row in rows if row.task_key in PROGRESS_KEYS]
 
 
 def serialize_datetime(value):

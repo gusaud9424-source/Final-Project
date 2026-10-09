@@ -66,7 +66,7 @@
             :segments="[{ key: 'done', value: summary.completedSteps, tone: 'accent' }]"
             :total="summary.totalSteps || 1"
             :center="`${summary.percent}%`"
-            :sub="`${summary.completedSteps}/${summary.totalSteps} 단계`"
+            :sub="`실습 레벨 ${summary.completedSteps}/${summary.totalSteps} 통과`"
             :aria-label="`전체 진도 ${summary.percent}%`"
           />
           <p class="sq-panel__foot">수강 {{ summary.enrolledCourses }}과목 기준</p>
@@ -95,13 +95,13 @@
         </article>
 
         <article class="sq-card sq-panel">
-          <h2 class="sq-panel__title">단계별 완료</h2>
+          <h2 class="sq-panel__title">실습 레벨별 통과 (수강 과목 수 기준)</h2>
           <DonutChart
             :segments="stepSegments"
             :total="stepTotals.enrolled * 3 || 1"
             :center="`${summary.completedSteps}`"
-            sub="완료 단계"
-            aria-label="단계별 완료 수"
+            sub="통과 레벨"
+            aria-label="실습 레벨별 통과 수"
           />
           <ul class="sq-legend">
             <li v-for="seg in stepSegments" :key="seg.key">
@@ -138,7 +138,7 @@
         </article>
 
         <article class="sq-card sq-panel">
-          <h2 class="sq-panel__title">주간 학습 활동 <span class="sq-panel__hint">(완료 단계 수)</span></h2>
+          <h2 class="sq-panel__title">주간 학습 활동 <span class="sq-panel__hint">(레벨 통과 · 미션 완료 수)</span></h2>
           <svg class="sq-trend" viewBox="0 0 320 140" role="img" :aria-label="trendLabel">
             <line x1="24" y1="112" x2="312" y2="112" class="sq-trend__axis" />
             <g v-for="(w, i) in weeklyBars" :key="w.weekStart">
@@ -181,7 +181,7 @@
       <!-- 단계 완료 날짜 · 최근 활동 -->
       <section class="sq-chart-grid sq-chart-grid--bottom">
         <article class="sq-card sq-panel">
-          <h2 class="sq-panel__title">과목별 단계 완료 날짜</h2>
+          <h2 class="sq-panel__title">과목별 실습 레벨 통과 날짜</h2>
           <p v-if="!enrolledCourses.length" class="sq-student__status">수강 중인 과목이 없습니다.</p>
           <div v-else class="sq-table-wrap">
             <table class="sq-table">
@@ -236,9 +236,10 @@ import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 import DonutChart from "@/components/admin/DonutChart.vue";
 
-const STEP_KEYS = ["concept", "practice", "defense"];
-const STEP_LABELS = { concept: "개념 학습", practice: "실습 성공", defense: "퀴즈 통과" };
-const STEP_TONES = { concept: "success", practice: "accent", defense: "warning" };
+// 진도율 기준: 실습 레벨 (백엔드 PROGRESS_KEYS)
+const STEP_KEYS = ["tier_low", "tier_medium", "tier_high", "tier_impossible"];
+const STEP_LABELS = { tier_low: "하 레벨", tier_medium: "중 레벨", tier_high: "상 레벨", tier_impossible: "안전 레벨" };
+const STEP_TONES = { tier_low: "success", tier_medium: "accent", tier_high: "warning", tier_impossible: "success" };
 const STATUS_TONE = { 진행중: "progress", 정체: "stalled", 완료: "done", 미시작: "none" };
 const DIFFICULTY_TONE = { 초급: "success", 중급: "warning", 고급: "danger" };
 const SOURCE_TONES = ["accent", "success", "warning", "danger", "muted"];
@@ -269,7 +270,7 @@ const statCards = computed(() => {
   return [
     {
       key: "percent", label: "전체 진도율", icon: "bi-graph-up-arrow",
-      value: `${s.percent}%`, bar: s.percent, sub: `단계 ${s.completedSteps}/${s.totalSteps} 완료`,
+      value: `${s.percent}%`, bar: s.percent, sub: `실습 레벨 ${s.completedSteps}/${s.totalSteps} 통과`,
     },
     {
       key: "points", label: "보유 포인트", icon: "bi-coin",

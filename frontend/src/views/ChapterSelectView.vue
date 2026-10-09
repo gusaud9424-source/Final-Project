@@ -11,7 +11,7 @@
       <div class="sq-chapters__header-text">
         <h1 class="sq-chapters__title">학습 진도</h1>
         <p class="sq-chapters__subtitle">
-          초급 → 중급 → 고급 순서로 학습하세요. 각 과목은 개념 학습 · 실습 · 퀴즈 3단계로 구성됩니다.
+          초급 → 중급 → 고급 순서로 학습하세요. 진도율은 실습 레벨(하 · 중 · 상 · 안전)을 통과할 때마다 올라가며, 4레벨을 모두 통과하면 100%입니다.
         </p>
       </div>
 
@@ -31,7 +31,7 @@
           <div class="sq-progress-bar__fill" :style="{ width: overall.percent + '%' }"></div>
         </div>
         <span class="sq-chapters__overall-meta">
-          수강 중 {{ overall.enrolled }}/{{ enrollStore.items.length }}과목 · 단계 {{ overall.completed }}/{{ overall.total }} 완료
+          수강 중 {{ overall.enrolled }}/{{ enrollStore.items.length }}과목 · 실습 레벨 {{ overall.completed }}/{{ overall.total }} 통과
         </span>
       </div>
     </section>
@@ -83,10 +83,10 @@
                   <div class="sq-progress-bar__fill" :style="{ width: course.percent + '%' }"></div>
                 </div>
                 <p class="sq-chapter-card__progress-label">
-                  {{ course.completed }}/{{ course.total }} 완료 · {{ course.percent }}%
+                  실습 레벨 {{ course.completed }}/{{ course.total }} 통과 · {{ course.percent }}%
                 </p>
 
-                <ul class="sq-step-list" aria-label="단계별 진행 상태">
+                <ul class="sq-step-list" aria-label="실습 레벨별 통과 상태">
                   <li
                     v-for="step in STEPS"
                     :key="step.key"
@@ -132,11 +132,12 @@ const router = useRouter();
 const authStore = useAuthStore();
 const enrollStore = useEnrollStore();
 
-// 과목당 학습 단계 (백엔드 TASK_KEYS 와 동일한 순서)
+// 진도율 기준: 실습 레벨 (백엔드 PROGRESS_KEYS 와 동일한 순서)
 const STEPS = [
-  { key: "concept", label: "개념" },
-  { key: "practice", label: "실습" },
-  { key: "defense", label: "퀴즈" },
+  { key: "tier_low", label: "하" },
+  { key: "tier_medium", label: "중" },
+  { key: "tier_high", label: "상" },
+  { key: "tier_impossible", label: "안전" },
 ];
 const STEP_TOTAL = STEPS.length;
 
@@ -200,7 +201,7 @@ const groups = computed(() =>
   })).filter((g) => g.items.length)
 );
 
-// 전체 진도율: 수강 중인 과목의 단계 합계 기준 (대시보드 학습 요약과 동일한 계산)
+// 전체 진도율: 수강 중인 과목의 실습 레벨 통과 합계 기준 (대시보드 학습 요약과 동일한 계산)
 const overall = computed(() => {
   const enrolled = courses.value.filter((c) => c.enrolled);
   const completed = enrolled.reduce((sum, c) => sum + c.completed, 0);

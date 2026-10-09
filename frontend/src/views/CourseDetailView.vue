@@ -31,7 +31,7 @@
 
         <div class="sq-course__progress">
           <span class="sq-course__progress-label">
-            {{ progress.completed }}/{{ progress.total }} 미션 완료 · {{ progress.percent }}%
+            실습 레벨 {{ progress.completed }}/{{ progress.total }} 통과 · {{ progress.percent }}%
           </span>
           <div
             class="sq-progress-bar"
@@ -288,7 +288,7 @@ async function loadRewards() {
 // 1회차 완료 여부 (확인 문제 통과 시 true)
 const conceptDone = computed(() => !!tasks.value.find((t) => t.key === "concept")?.completed);
 
-// 확인 문제 통과 → 진도·미션 보상 상태 갱신 (보상은 미션 탭에서 클릭해 수령)
+// 확인 문제 통과 → 미션 보상 상태 갱신 (진도율은 실습 레벨 기준이라 변화 없음) (보상은 미션 탭에서 클릭해 수령)
 async function onConceptPassed() {
   await loadCourse();
   await loadRewards();

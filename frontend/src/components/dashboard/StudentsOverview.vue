@@ -64,7 +64,7 @@
 
         <!-- 3. 단계별 진행 인원 -->
         <section class="sq-panel">
-          <h2 class="sq-panel__title">단계별 진행률 (전체 수강 건)</h2>
+          <h2 class="sq-panel__title">실습 레벨별 통과율 (전체 수강 건)</h2>
           <p v-if="!funnel.total" class="sq-overview__status">수강 기록이 없습니다.</p>
           <template v-else>
             <ul class="sq-funnel">
@@ -80,7 +80,7 @@
             </ul>
             <p v-if="biggestDrop" class="sq-funnel__alert">
               <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-              {{ biggestDrop.label }} 단계 이탈 {{ biggestDrop.drop }}%p
+              {{ biggestDrop.label }} 레벨에서 이탈 {{ biggestDrop.drop }}%p
             </p>
           </template>
         </section>
@@ -215,8 +215,9 @@ import { computed, onMounted, ref } from "vue";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
 
-const STEP_KEYS = ["concept", "practice", "defense"];
-const STEP_LABELS = { concept: "개념 학습", practice: "실습 성공", defense: "퀴즈 통과" };
+// 진도율 기준: 실습 레벨 (백엔드 PROGRESS_KEYS)
+const STEP_KEYS = ["tier_low", "tier_medium", "tier_high", "tier_impossible"];
+const STEP_LABELS = { tier_low: "하", tier_medium: "중", tier_high: "상", tier_impossible: "안전" };
 const STATUS_LIST = ["진행중", "정체", "완료", "미시작"];
 const STATUS_TONE = { 진행중: "progress", 정체: "stalled", 완료: "done", 미시작: "none" };
 const DIFFICULTY_TONE = { 초급: "success", 중급: "warning", 고급: "danger" };

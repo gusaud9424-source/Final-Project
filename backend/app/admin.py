@@ -30,7 +30,14 @@ from .models import (
     VerificationCode,
     XpLedger,
 )
-from .progress import PROGRESS_QUERY_KEYS, TASK_TOTAL, current_user, effective_task_rows
+from .progress import (
+    PROGRESS_KEYS,
+    PROGRESS_QUERY_KEYS,
+    PROGRESS_TOTAL,
+    current_user,
+    effective_task_rows,
+    progress_rows,
+)
 
 bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 
@@ -230,15 +237,15 @@ def progress_overview():
     ids = [s.id for s in students]
 
     enrollments = Enrollment.query.filter(Enrollment.user_id.in_(ids)).all() if ids else []
-    progress_rows = (
-        effective_task_rows(
-            TaskProgress.query.filter(
-                TaskProgress.user_id.in_(ids), TaskProgress.task_key.in_(PROGRESS_QUERY_KEYS)
-            ).all()
-        )
+    raw_rows = (
+        TaskProgress.query.filter(
+            TaskProgress.user_id.in_(ids), TaskProgress.task_key.in_(PROGRESS_QUERY_KEYS)
+        ).all()
         if ids
         else []
     )
+    # 미션 완료(단계 표시용) + 레벨 통과(진도율용)
+    progress_rows_all = effective_task_rows(raw_rows) + progress_rows(raw_rows)
     points = dict(
         db.session.query(PointLedger.user_id, func.sum(PointLedger.amount))
         .filter(PointLedger.user_id.in_(ids))
@@ -261,7 +268,7 @@ def progress_overview():
     # (user_id, course_id) → {task_key: completed_at}
     done = defaultdict(dict)
     last_task = {}
-    for row in progress_rows:
+    for row in progress_rows_all:
         done[(row.user_id, row.course_id)][row.task_key] = row.completed_at
         if row.completed_at and (row.user_id not in last_task or row.completed_at > last_task[row.user_id]):
             last_task[row.user_id] = row.completed_at
@@ -273,7 +280,7 @@ def progress_overview():
 
     student_list = []
     course_acc = {c.id: {"enrolled": 0, "percentSum": 0, "completed": 0} for c in courses}
-    funnel = {key: 0 for key in TASK_KEYS}
+    funnel = {key: 0 for key in PROGRESS_KEYS}  # 실습 레벨별 통과 인원
     funnel_total = 0
     active_count = 0
 
@@ -284,26 +291,26 @@ def progress_overview():
         for e in user_enrollments:
             course = course_by_id[e.course_id]
             steps = done.get((s.id, course.id), {})
-            completed = sum(1 for key in TASK_KEYS if key in steps)
-            percent = round(completed / TASK_TOTAL * 100)
+            completed = sum(1 for key in PROGRESS_KEYS if key in steps)
+            percent = round(completed / PROGRESS_TOTAL * 100)
             completed_sum += completed
             per_course[course.slug] = {
                 "completed": completed,
-                "total": TASK_TOTAL,
+                "total": PROGRESS_TOTAL,
                 "percent": percent,
-                "steps": {key: _iso(steps.get(key)) for key in TASK_KEYS},
+                "steps": {key: _iso(steps.get(key)) for key in PROGRESS_KEYS + TASK_KEYS},
                 "enrolledAt": _iso(e.created_at),
             }
             acc = course_acc[course.id]
             acc["enrolled"] += 1
             acc["percentSum"] += percent
-            acc["completed"] += 1 if completed == TASK_TOTAL else 0
+            acc["completed"] += 1 if completed == PROGRESS_TOTAL else 0
             funnel_total += 1
-            for key in TASK_KEYS:
+            for key in PROGRESS_KEYS:
                 if key in steps:
                     funnel[key] += 1
 
-        total_steps = len(user_enrollments) * TASK_TOTAL
+        total_steps = len(user_enrollments) * PROGRESS_TOTAL
         overall = round(completed_sum / total_steps * 100) if total_steps else 0
         candidates = [v for v in (last_task.get(s.id), last_point.get(s.id)) if v]
         last_activity = max(candidates) if candidates else None
@@ -349,7 +356,7 @@ def progress_overview():
     ]
     funnel_list = [
         {"key": key, "count": funnel[key], "percent": round(funnel[key] / funnel_total * 100) if funnel_total else 0}
-        for key in TASK_KEYS
+        for key in PROGRESS_KEYS
     ]
     return jsonify(
         summary=summary,
@@ -374,7 +381,15 @@ SOURCE_LABELS = {
     "mission": "미션",
     "hint": "힌트",
 }
-STEP_EVENT_LABELS = {"concept": "개념 학습 완료", "practice": "실습 성공", "defense": "퀴즈 통과"}
+STEP_EVENT_LABELS = {
+    "concept": "개념 학습 완료",
+    "practice": "실습 미션 완료",
+    "defense": "퀴즈 통과",
+    "tier_low": "실습 하 레벨 통과",
+    "tier_medium": "실습 중 레벨 통과",
+    "tier_high": "실습 상 레벨 통과",
+    "tier_impossible": "실습 안전 레벨 통과",
+}
 
 
 def _to_kst(value):
@@ -402,32 +417,31 @@ def student_detail(user_id):
         key=lambda c: (DIFFICULTY_ORDER.get(c.difficulty, 9), c.id),
     )
     enrollments = {e.course_id: e for e in Enrollment.query.filter_by(user_id=target.id).all()}
-    progress_rows = effective_task_rows(
-        TaskProgress.query.filter(
-            TaskProgress.user_id == target.id, TaskProgress.task_key.in_(PROGRESS_QUERY_KEYS)
-        ).all()
-    )
+    raw_rows = TaskProgress.query.filter(
+        TaskProgress.user_id == target.id, TaskProgress.task_key.in_(PROGRESS_QUERY_KEYS)
+    ).all()
+    progress_rows_all = effective_task_rows(raw_rows) + progress_rows(raw_rows)
     point_rows = PointLedger.query.filter_by(user_id=target.id).all()
     xp_rows = XpLedger.query.filter_by(user_id=target.id).all()
     pending_rewards = Reward.query.filter_by(user_id=target.id, claimed_at=None).count()
 
     done = defaultdict(dict)
-    for row in progress_rows:
+    for row in progress_rows_all:
         done[row.course_id][row.task_key] = row.completed_at
 
     # 과목별 진도 (미수강 과목 포함, 난이도순)
     course_list = []
-    step_totals = {key: 0 for key in TASK_KEYS}
+    step_totals = {key: 0 for key in PROGRESS_KEYS + TASK_KEYS}
     completed_steps = 0
     completed_courses = 0
     for c in courses:
         e = enrollments.get(c.id)
         steps = done.get(c.id, {}) if e else {}
-        completed = sum(1 for key in TASK_KEYS if key in steps)
+        completed = sum(1 for key in PROGRESS_KEYS if key in steps)
         if e:
             completed_steps += completed
-            completed_courses += 1 if completed == TASK_TOTAL else 0
-            for key in TASK_KEYS:
+            completed_courses += 1 if completed == PROGRESS_TOTAL else 0
+            for key in PROGRESS_KEYS + TASK_KEYS:
                 if key in steps:
                     step_totals[key] += 1
         course_list.append({
@@ -438,17 +452,17 @@ def student_detail(user_id):
             "enrolled": bool(e),
             "enrolledAt": _iso(e.created_at) if e else None,
             "completed": completed,
-            "total": TASK_TOTAL,
-            "percent": round(completed / TASK_TOTAL * 100),
-            "steps": {key: _iso(steps.get(key)) for key in TASK_KEYS},
+            "total": PROGRESS_TOTAL,
+            "percent": round(completed / PROGRESS_TOTAL * 100),
+            "steps": {key: _iso(steps.get(key)) for key in PROGRESS_KEYS + TASK_KEYS},
         })
 
     enrolled_count = len(enrollments)
-    total_steps = enrolled_count * TASK_TOTAL
+    total_steps = enrolled_count * PROGRESS_TOTAL
     percent = round(completed_steps / total_steps * 100) if total_steps else 0
 
     # 활동 시각 모음 → 마지막 활동 · 학습한 날 · 주간 추이
-    activity_times = [r.completed_at for r in progress_rows if r.completed_at]
+    activity_times = [r.completed_at for r in progress_rows_all if r.completed_at]
     activity_times += [r.created_at for r in point_rows if r.created_at]
     activity_times += [r.created_at for r in xp_rows if r.created_at]
     last_activity = max(activity_times) if activity_times else None
@@ -458,7 +472,7 @@ def student_detail(user_id):
     this_monday = today_kst - timedelta(days=today_kst.weekday())
     week_starts = [this_monday - timedelta(weeks=i) for i in range(WEEKS_IN_TREND - 1, -1, -1)]
     week_counts = {w: 0 for w in week_starts}
-    for r in progress_rows:
+    for r in progress_rows_all:
         if not r.completed_at:
             continue
         d = _to_kst(r.completed_at).date()
@@ -483,7 +497,7 @@ def student_detail(user_id):
     events = [
         {"at": r.completed_at, "type": "step",
          "text": f"{course_title.get(r.course_id, '과목')} {STEP_EVENT_LABELS[r.task_key]}"}
-        for r in progress_rows if r.completed_at
+        for r in progress_rows_all if r.completed_at
     ]
     events += [
         {"at": r.created_at, "type": "point",
