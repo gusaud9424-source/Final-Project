@@ -369,4 +369,19 @@ onMounted(fetchLogs);
   justify-content: center;
   gap: 12px;
 }
+
+/* 휴대폰 폭: 검색줄을 한 줄 전체로 */
+@media (max-width: 600px) {
+  .sq-audit__search {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .sq-audit__select {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
 </style>

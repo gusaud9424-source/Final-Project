@@ -216,6 +216,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap; /* 좁은 화면에서 버튼이 제목 아래로 내려감 */
   gap: 16px;
 }
 

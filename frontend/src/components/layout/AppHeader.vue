@@ -310,4 +310,46 @@ async function handleLogout() {
   background: var(--sq-color-accent-subtle);
 }
 
+
+/* ── 좁은 화면 (태블릿 · 휴대폰): 데스크톱(1100px 이상) 레이아웃은 그대로 ── */
+@media (max-width: 1100px) {
+  .sq-header {
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    row-gap: 10px;
+  }
+
+  /* 메뉴는 둘째 줄 전체 폭, 넘치면 가로 스크롤 */
+  .sq-header__nav {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .sq-tab {
+    padding: 8px 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sq-header__user-info {
+    display: none;
+  }
+
+  .sq-header__logout {
+    margin-left: 4px;
+  }
+
+  .sq-tab {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .sq-header__profile-panel {
+    width: min(240px, calc(100vw - 32px));
+  }
+}
 </style>

@@ -113,3 +113,10 @@
   --sq-auth-card-padding-y-mobile: 40px;
   --sq-auth-card-padding-x-mobile: 24px;
 }
+
+/* 휴대폰 폭에서는 좌우 여백을 줄인다 */
+@media (max-width: 600px) {
+  :root {
+    --sq-page-padding-x: 16px;
+  }
+}

@@ -119,4 +119,15 @@ const activeTab = computed(() => TABS.find((t) => t.key === active.value));
     white-space: nowrap;
   }
 }
+
+/* 휴대폰 폭: 탭이 넘치면 가로 스크롤 */
+@media (max-width: 600px) {
+  .sq-admin__tabs {
+    overflow-x: auto;
+  }
+
+  .sq-admin__tab {
+    white-space: nowrap;
+  }
+}
 </style>

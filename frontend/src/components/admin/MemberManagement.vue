@@ -378,4 +378,13 @@ onMounted(fetchUsers);
     flex-direction: column;
   }
 }
+
+/* 휴대폰 폭: 검색줄을 한 줄 전체로 */
+@media (max-width: 600px) {
+  .sq-members__search {
+    flex: 1 1 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}
 </style>
