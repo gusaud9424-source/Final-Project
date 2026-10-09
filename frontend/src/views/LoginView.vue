@@ -65,6 +65,12 @@
         <span aria-hidden="true">·</span>
         <router-link to="/find-password">비밀번호 찾기</router-link>
       </div>
+
+      <!-- 계정이 없는 학생용 회원가입 (관리자 계정은 가입으로 만들 수 없음) -->
+      <div class="sq-login-signup">
+        <span>아직 계정이 없나요?</span>
+        <router-link to="/signup" class="sq-login-signup__btn">회원가입</router-link>
+      </div>
     </div>
     <AppFooter />
   </div>
@@ -212,5 +218,33 @@ async function onSubmit() {
 .sq-login-links a {
   color: var(--sq-text-link);
   text-decoration: none;
+}
+
+.sq-login-signup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sq-card-border);
+  font-size: 13px;
+  color: var(--sq-text-sub);
+  text-align: center;
+}
+
+.sq-login-signup__btn {
+  display: block;
+  padding: 11px 20px;
+  border: 1px solid var(--sq-color-accent);
+  border-radius: var(--sq-radius-none);
+  background: var(--sq-bg-card);
+  color: var(--sq-color-accent);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sq-login-signup__btn:hover {
+  background: var(--sq-color-accent-subtle);
 }
 </style>

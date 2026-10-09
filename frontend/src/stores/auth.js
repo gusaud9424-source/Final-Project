@@ -43,22 +43,17 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  // 회원가입 mock (UI First: 백엔드 signup API 연동 전까지 사용)
-  async function signup({ username }) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return { success: true, message: `${username} 님, 회원가입이 완료되었습니다. (mock)` };
-  }
-
-  // 휴대폰 아이디 찾기 mock (백엔드 find-id SMS API 미구현)
-  async function sendFindIdPhoneCode(phone) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return { success: true, message: `${phone} 으로 인증코드를 발송했습니다. (mock)` };
-  }
-
-  // eslint-disable-next-line no-unused-vars -- 실제 API 연동 시 사용할 인자
-  async function verifyFindIdPhoneCode(phone, code) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return { success: true, message: "휴대폰 아이디 찾기는 백엔드 연동 전입니다. (mock)" };
+  // 회원가입: 서버(POST /auth/signup)에 저장. 가입 후 자동 로그인은 하지 않고 로그인 화면으로 보냄
+  async function signup({ username, password, name, email, phone }) {
+    try {
+      const { data } = await client.post("/auth/signup", { username, password, name, email, phone });
+      return { success: true, message: data.message };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "회원가입에 실패했습니다. 잠시 후 다시 시도하세요.",
+      };
+    }
   }
 
   return {
@@ -70,7 +65,5 @@ export const useAuthStore = defineStore("auth", () => {
     login,
     logout,
     signup,
-    sendFindIdPhoneCode,
-    verifyFindIdPhoneCode,
   };
 });

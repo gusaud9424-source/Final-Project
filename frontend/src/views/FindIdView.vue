@@ -5,54 +5,91 @@
   © 2026 5팀_Security Learning Platform
 -->
 <template>
-  <AuthCard
-    title="아이디 찾기"
-    :description="description"
-    :submitting="loading"
-    :show-submit="step !== 'done'"
-    @submit="onNext"
-  >
-    <label v-if="step === 'target'" class="sq-auth-field">
-      <span class="sq-auth-field__label">{{ isPhone ? "가입 시 등록한 휴대폰 번호" : "가입 시 등록한 이메일" }}</span>
-      <input
-        v-model="target"
-        class="form-control sq-auth-field__input"
-        :type="isPhone ? 'tel' : 'email'"
-        :autocomplete="isPhone ? 'tel' : 'email'"
-      />
-    </label>
-
-    <label v-else-if="step === 'code'" class="sq-auth-field">
-      <span class="sq-auth-field__label">인증코드</span>
-      <input
-        v-model="code"
-        class="form-control sq-auth-field__input"
-        type="text"
-        inputmode="numeric"
-        autocomplete="one-time-code"
-      />
-    </label>
-
-    <!-- 이메일(실제 API) 경로 전용 카드 내 메시지 -->
-    <p v-if="noticeMessage" class="sq-find-id-notice">{{ noticeMessage }}</p>
-    <p v-if="errorMessage" class="sq-find-id-error">{{ errorMessage }}</p>
-
-    <div v-if="step === 'done'" class="sq-find-id-done">
-      <p class="sq-find-id-result">
-        회원님의 아이디는 <strong>{{ foundUsername }}</strong> 입니다.
-      </p>
-      <router-link class="sq-auth-link" to="/login">로그인하기</router-link>
+  <AuthCard title="아이디 찾기">
+    <!-- 찾기 방식 탭: 주소(/find-id, /find-id/phone)로 구분 -->
+    <div class="sq-auth-tabs" role="tablist">
+      <router-link
+        to="/find-id"
+        replace
+        role="tab"
+        class="sq-auth-tab"
+        :class="{ 'sq-auth-tab--active': !isPhone }"
+        :aria-selected="!isPhone"
+      >
+        이메일로 찾기
+      </router-link>
+      <router-link
+        to="/find-id/phone"
+        replace
+        role="tab"
+        class="sq-auth-tab"
+        :class="{ 'sq-auth-tab--active': isPhone }"
+        :aria-selected="isPhone"
+      >
+        휴대폰으로 찾기
+      </router-link>
     </div>
 
-    <template v-if="step === 'target'" #aside>
-      <router-link class="sq-auth-link" :to="isPhone ? '/find-id' : '/find-id/phone'">
-        {{ isPhone ? "이메일로 찾기" : "휴대폰으로 찾기" }}
-      </router-link>
-    </template>
+    <form class="sq-auth-form" @submit.prevent="onSendCode">
+      <template v-if="isPhone">
+        <label class="sq-auth-label" for="name">이름</label>
+        <input id="name" v-model="name" class="sq-auth-input" type="text" autocomplete="name" required />
 
-    <template #footer>
-      <router-link class="sq-auth-link" to="/find-password">비밀번호 찾기</router-link>
-      <router-link class="sq-auth-link" to="/signup">회원가입</router-link>
+        <label class="sq-auth-label" for="phone">휴대폰 번호</label>
+        <input
+          id="phone"
+          v-model="phone"
+          class="sq-auth-input"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="tel"
+          placeholder="01012345678"
+          required
+        />
+        <span class="sq-auth-hint">가입할 때 입력한 이름과 휴대폰 번호로 SMS 인증코드를 보냅니다.</span>
+      </template>
+      <template v-else>
+        <label class="sq-auth-label" for="email">이메일</label>
+        <input id="email" v-model="email" class="sq-auth-input" type="email" autocomplete="email" required />
+        <span class="sq-auth-hint">가입할 때 입력한 이메일로 인증코드를 보냅니다.</span>
+      </template>
+
+      <p v-if="sendError" class="sq-auth-error">{{ sendError }}</p>
+      <p v-if="sendMessage" class="sq-auth-notice">{{ sendMessage }}</p>
+
+      <button type="submit" class="sq-auth-submit" :disabled="sending">
+        {{ sending ? "발송 중..." : isPhone ? "SMS 인증코드 발송" : "이메일 인증코드 발송" }}
+      </button>
+    </form>
+
+    <form class="sq-auth-form" @submit.prevent="onVerify">
+      <label class="sq-auth-label" for="code">인증코드</label>
+      <input id="code" v-model="code" class="sq-auth-input" type="text" inputmode="numeric" required />
+
+      <p v-if="errorMessage" class="sq-auth-error">{{ errorMessage }}</p>
+      <div v-if="foundUsernames.length" class="sq-auth-result">
+        <template v-if="foundUsernames.length === 1">
+          회원님의 아이디는 <strong>{{ foundUsernames[0] }}</strong> 입니다.
+        </template>
+        <template v-else>
+          이 정보로 가입된 아이디입니다.
+          <ul>
+            <li v-for="item in foundUsernames" :key="item"><strong>{{ item }}</strong></li>
+          </ul>
+        </template>
+      </div>
+
+      <button type="submit" class="sq-auth-submit" :disabled="verifying">
+        {{ verifying ? "확인 중..." : "확인" }}
+      </button>
+    </form>
+
+    <template #links>
+      <router-link to="/login">로그인</router-link>
+      <span aria-hidden="true">·</span>
+      <router-link to="/find-password">비밀번호 찾기</router-link>
+      <span aria-hidden="true">·</span>
+      <router-link to="/signup">회원가입</router-link>
     </template>
   </AuthCard>
 </template>
@@ -62,138 +99,62 @@ import { computed, ref, watch } from "vue";
 import AuthCard from "@/components/auth/AuthCard.vue";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
-import { useAuthStore } from "@/stores/auth";
 
+// 라우터에서 /find-id/phone 이면 method="phone" 이 넘어옴
 const props = defineProps({
-  // 라우트 props 로 전달: "email"(/find-id) | "phone"(/find-id/phone)
-  method: {
-    type: String,
-    default: "email",
-  },
+  method: { type: String, default: "email" },
 });
-
-const authStore = useAuthStore();
-
-const step = ref("target"); // target → code → done(이메일 경로만)
-const target = ref("");
-const code = ref("");
-const loading = ref(false);
-const noticeMessage = ref("");
-const errorMessage = ref("");
-const foundUsername = ref("");
-
 const isPhone = computed(() => props.method === "phone");
-const description = computed(() => {
-  if (step.value === "done") {
-    return "아이디 찾기가 완료되었습니다.";
-  }
-  if (step.value === "target") {
-    return isPhone.value ? "휴대폰 번호를 입력해 주세요." : "이메일을 입력해 주세요.";
-  }
-  return isPhone.value
-    ? "휴대폰으로 받은 인증코드를 입력해 주세요."
-    : "이메일로 받은 인증코드를 입력해 주세요.";
+
+const email = ref("");
+const name = ref("");
+const phone = ref("");
+const code = ref("");
+const sending = ref(false);
+const verifying = ref(false);
+const sendMessage = ref("");
+const sendError = ref("");
+const errorMessage = ref("");
+const foundUsernames = ref([]);
+
+// 탭을 바꾸면 이전 방식의 메시지·결과를 비움
+watch(isPhone, () => {
+  code.value = "";
+  sendMessage.value = "";
+  sendError.value = "";
+  errorMessage.value = "";
+  foundUsernames.value = [];
 });
 
-// 같은 컴포넌트로 이메일↔휴대폰 라우트 전환 시 입력 상태 초기화
-watch(
-  () => props.method,
-  () => {
-    step.value = "target";
-    target.value = "";
-    code.value = "";
-    noticeMessage.value = "";
-    errorMessage.value = "";
-    foundUsername.value = "";
-  },
-);
-
-// 휴대폰 mock 은 alert, 이메일(실제 API)은 카드 안에 표시
-function showError(message) {
-  if (isPhone.value) {
-    alert(message);
-  } else {
-    errorMessage.value = message;
+async function onSendCode() {
+  sending.value = true;
+  sendMessage.value = "";
+  sendError.value = "";
+  try {
+    const { data } = isPhone.value
+      ? await client.post("/auth/find-id/send-sms-code", { name: name.value, phone: phone.value })
+      : await client.post("/auth/find-id/send-code", { email: email.value });
+    sendMessage.value = data.message;
+  } catch (error) {
+    sendError.value = getErrorMessage(error, "요청 처리 중 오류가 발생했습니다.");
+  } finally {
+    sending.value = false;
   }
 }
 
-function onNext() {
-  noticeMessage.value = "";
+async function onVerify() {
+  verifying.value = true;
   errorMessage.value = "";
-  return step.value === "target" ? sendCode() : verifyCode();
-}
-
-async function sendCode() {
-  if (!target.value.trim()) {
-    showError(isPhone.value ? "휴대폰 번호를 입력해 주세요." : "이메일을 입력해 주세요.");
-    return;
-  }
-
-  loading.value = true;
+  foundUsernames.value = [];
   try {
-    if (isPhone.value) {
-      const result = await authStore.sendFindIdPhoneCode(target.value);
-      alert(result.message);
-    } else {
-      const { data } = await client.post("/auth/find-id/send-code", { email: target.value });
-      noticeMessage.value = data.message;
-    }
-    step.value = "code";
+    const { data } = isPhone.value
+      ? await client.post("/auth/find-id/verify-sms", { name: name.value, phone: phone.value, code: code.value })
+      : await client.post("/auth/find-id/verify", { email: email.value, code: code.value });
+    foundUsernames.value = data.usernames || [data.username];
   } catch (error) {
-    showError(getErrorMessage(error, "요청 처리 중 오류가 발생했습니다."));
+    errorMessage.value = getErrorMessage(error, "인증에 실패했습니다.");
   } finally {
-    loading.value = false;
-  }
-}
-
-async function verifyCode() {
-  if (!code.value.trim()) {
-    showError("인증코드를 입력해 주세요.");
-    return;
-  }
-
-  loading.value = true;
-  try {
-    if (isPhone.value) {
-      const result = await authStore.verifyFindIdPhoneCode(target.value, code.value);
-      alert(result.message);
-      // mock 은 결과가 없으므로 처음 단계로 복귀
-      step.value = "target";
-      code.value = "";
-    } else {
-      const { data } = await client.post("/auth/find-id/verify", {
-        email: target.value,
-        code: code.value,
-      });
-      foundUsername.value = data.username;
-      step.value = "done";
-    }
-  } catch (error) {
-    showError(getErrorMessage(error, "인증에 실패했습니다."));
-  } finally {
-    loading.value = false;
+    verifying.value = false;
   }
 }
 </script>
-
-<style scoped>
-.sq-find-id-notice,
-.sq-find-id-result {
-  margin: 0;
-  font-size: var(--sq-auth-message-size);
-  color: var(--sq-auth-text-desc);
-}
-
-.sq-find-id-error {
-  margin: 0;
-  font-size: var(--sq-auth-message-size);
-  color: var(--sq-auth-text-error);
-}
-
-.sq-find-id-done {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--sq-auth-field-gap);
-}
-</style>

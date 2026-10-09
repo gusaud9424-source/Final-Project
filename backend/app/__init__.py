@@ -53,4 +53,9 @@ def create_app():
     def handle_csrf_error(_error):
         return jsonify(error="csrf", message="보안 토큰이 만료되었습니다. 다시 시도하세요."), 400
 
+    @app.errorhandler(429)
+    def handle_rate_limit(_error):
+        # Rate Limit 초과 시 HTML 대신 JSON 안내 (프론트가 message를 그대로 표시)
+        return jsonify(error="rate_limit", message="요청이 너무 많습니다. 잠시 후 다시 시도하세요."), 429
+
     return app
