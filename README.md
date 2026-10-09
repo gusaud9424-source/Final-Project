@@ -102,6 +102,7 @@ docker compose exec backend python seed.py     # 과목 · 시연 계정 생성
 > - 이메일(SMTP) · 문자(SMS) 키를 비워 두면 인증코드 발송만 동작하지 않고 나머지 기능은 모두 동작합니다.
 > - 학생 · 관리자를 동시에 보려면 한쪽은 **시크릿 창**(Chrome `Ctrl+Shift+N`)을 쓰세요. 같은 브라우저는 로그인 쿠키를 공유합니다.
 > - 비밀번호를 잊었다면: `docker compose exec backend flask set-password --username admin`
+> - **SQL Injection · File Upload 의 중(Medium) 레벨**은 화면의 입력 제한(드롭다운 · 자동 Content-Type)을 넘어서야 하는 단계라, 실무처럼 브라우저 개발자 도구(DevTools)나 프록시 도구로 요청을 직접 바꿔야 합니다. "화면 제한만으로는 막을 수 없고 검증은 서버에서 해야 한다"(클라이언트 측 검증의 한계)를 보여 주는 의도된 설계입니다. 시연은 화면만으로 진행되는 다른 레벨 위주로 하세요.
 > - ⚠️ 실습 페이지는 학습을 위해 **의도적으로 취약**합니다. 외부에 공개하지 말고 로컬에서만 실행하세요.
 
 ---

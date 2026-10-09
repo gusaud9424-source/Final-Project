@@ -173,7 +173,7 @@
                         <span><i class="bi bi-envelope" aria-hidden="true"></i> {{ student.email }}</span>
                         <span><i class="bi bi-coin" aria-hidden="true"></i> {{ student.points.toLocaleString() }}P</span>
                         <span><i class="bi bi-calendar-check" aria-hidden="true"></i> 출석 {{ student.attendanceDays }}일</span>
-                        <span><i class="bi bi-list-check" aria-hidden="true"></i> 단계 {{ student.completedSteps }}/{{ student.totalSteps }}</span>
+                        <span><i class="bi bi-list-check" aria-hidden="true"></i> 실습 레벨 {{ student.completedSteps }}/{{ student.totalSteps }}</span>
                       </div>
                       <p v-if="!student.courseCount" class="sq-overview__status">수강 중인 과목이 없습니다.</p>
                       <table v-else class="sq-detail__table">

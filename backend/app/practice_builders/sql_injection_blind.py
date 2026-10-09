@@ -34,7 +34,7 @@ _HINTS = {
         "예: 1' AND SUBSTR(password,1,1)='a' -- ",
     ],
     "medium": [
-        "숫자 컨텍스트(= $id) + 드롭다운입니다. DevTools/Burp로 id 값을 변조하세요(따옴표 불필요).",
+        "숫자 컨텍스트(= $id)라 따옴표가 필요 없습니다. 이 화면에서는 User ID 입력칸에 바로 입력하면 됩니다.",
         "서브쿼리로 admin 비밀번호 글자를 비교합니다.",
         "예(변조 값): 0 OR (SELECT SUBSTR(password,1,1) FROM users WHERE user='admin')='a'",
     ],
