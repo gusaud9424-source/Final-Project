@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecuQuest 포트폴리오 · 오현명</title>
+<meta name="description" content="웹 보안 취약점을 직접 공격해 보고 막는 법까지 배우는 한국어 실습형 학습 플랫폼 SecuQuest — 1인 풀스택 개발 포트폴리오">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --accent:#3659BE; --accent-d:#2B4798; --accent-soft:#EEF2FB; --accent-line:#C9D4F0;
+  --ink:#1A1D2A; --sub:#535259; --mute:#7A7A85; --line:#E5E7EB;
+  --card:#FDFDFC; --page:#F6F8FC; --ok:#2E8B57; --ok-soft:#EAF6EF; --warn:#DD3333; --warn-soft:#FDEEEE;
+  --term:#1E2233;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--page);color:var(--ink);font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif;font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;word-break:keep-all}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+img{max-width:100%;display:block}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+section{padding:64px 0;border-top:1px solid var(--line)}
+.eyebrow{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;margin:0 0 8px}
+h2{font-size:28px;line-height:1.3;margin:0 0 8px;letter-spacing:-.02em}
+h3{font-size:18px;margin:0 0 6px;letter-spacing:-.01em}
+.lead{color:var(--sub);margin:0 0 32px;max-width:720px}
+.card{background:var(--card);border:1px solid var(--line);box-shadow:0 2px 8px rgba(26,29,42,.06)}
+.shot{border:1px solid var(--line);box-shadow:0 8px 24px rgba(26,29,42,.10);background:#fff}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;background:var(--accent-soft);color:var(--accent-d);margin:0 4px 4px 0}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:10;background:rgba(249,253,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:16px;height:56px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:18px;color:var(--ink)}
+.brand svg{color:var(--accent)}
+.top nav{margin-left:auto;display:flex;gap:4px;overflow-x:auto}
+.top nav a{font-size:14px;color:var(--sub);padding:6px 10px;white-space:nowrap}
+.top nav a:hover{color:var(--accent);text-decoration:none;background:var(--accent-soft)}
+
+/* hero */
+.hero{padding:56px 0 40px;border-top:0;background:linear-gradient(120deg,#F3F6FD 0%,#FBF8EE 100%)}
+.hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+.hero h1{font-size:44px;line-height:1.15;margin:8px 0 14px;letter-spacing:-.03em}
+.hero h1 small{display:block;font-size:20px;font-weight:600;color:var(--sub);letter-spacing:-.01em;margin-top:8px}
+.hero p.one{font-size:18px;margin:0 0 20px}
+.hero p.one b{color:var(--accent-d)}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px;margin:0 0 24px}
+.meta dt{color:var(--mute)}
+.meta dd{margin:0;font-weight:600}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;font-weight:700;font-size:14px;border:1px solid var(--accent);background:var(--accent);color:#fff}
+.btn:hover{background:var(--accent-d);text-decoration:none}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:40px}
+.stat{padding:16px;text-align:left}
+.stat b{display:block;font-size:26px;line-height:1.1;letter-spacing:-.02em;color:var(--accent-d)}
+.stat span{font-size:13px;color:var(--sub)}
+
+/* overview */
+.pse{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.pse .card{padding:22px}
+.pse .k{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:6px}
+.pse p{margin:0;color:var(--sub);font-size:15px}
+.flow{display:flex;align-items:center;gap:0;margin-top:24px;flex-wrap:wrap}
+.flow .step{flex:1 1 0;min-width:120px;padding:14px 12px;text-align:center;font-size:14px;font-weight:600;background:#fff;border:1px solid var(--line)}
+.flow .step small{display:block;font-weight:400;color:var(--mute);font-size:12px}
+.flow .step.lv{background:var(--accent-soft);border-color:var(--accent-line)}
+.flow .step.safe{background:var(--ok-soft);border-color:#BFE3CD}
+.flow .arr{color:var(--mute);padding:0 6px;font-size:18px}
+
+/* features */
+.feat{display:grid;grid-template-columns:1fr 1.25fr;gap:32px;align-items:center;margin-bottom:48px}
+.feat:nth-of-type(even){grid-template-columns:1.25fr 1fr}
+.feat:nth-of-type(even) .txt{order:2}
+.feat .txt ul{margin:10px 0 0;padding-left:18px;color:var(--sub);font-size:15px}
+.feat .txt li{margin-bottom:4px}
+.feat .txt li b{color:var(--ink)}
+.feat .num{font-size:13px;font-weight:800;color:var(--accent)}
+.pair{display:grid;grid-template-columns:1fr;gap:10px}
+
+/* architecture */
+.arch{padding:20px}
+.arch svg{width:100%;height:auto}
+.arch text{font-family:Pretendard,sans-serif}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.sec{padding:22px}
+.sec h3{display:flex;align-items:center;gap:8px}
+.sec .dot{width:10px;height:10px;display:inline-block}
+.sec ul{margin:8px 0 0;padding-left:18px;font-size:14.5px;color:var(--sub)}
+.sec li{margin-bottom:4px}
+.sec li b{color:var(--ink)}
+
+/* cases */
+.cases{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.case{padding:22px;display:flex;flex-direction:column}
+.case .no{font-size:12px;font-weight:800;color:var(--accent);letter-spacing:.06em}
+.case h3{font-size:17px;margin:4px 0 12px}
+.case dl{margin:0;display:grid;grid-template-columns:44px 1fr;gap:6px 10px;font-size:14px}
+.case dt{font-weight:700;color:var(--mute)}
+.case dd{margin:0;color:var(--sub)}
+.case dd b{color:var(--ink)}
+.case .res{margin-top:12px;padding:8px 12px;background:var(--ok-soft);color:#1F6B41;font-size:13.5px;font-weight:600}
+
+/* stack & role */
+.stack{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.stack .card{padding:20px}
+.stack h3{font-size:15px;color:var(--accent-d)}
+.stack p{margin:6px 0 0;font-size:14px;color:var(--sub)}
+.role{margin-top:16px;padding:22px}
+.role table{width:100%;border-collapse:collapse;font-size:14.5px}
+.role th{text-align:left;width:140px;padding:9px 12px 9px 0;vertical-align:top;color:var(--accent-d);white-space:nowrap}
+.role td{padding:9px 0;color:var(--sub);border-top:1px solid var(--line)}
+.role tr:first-child td{border-top:0}
+.role tr+tr th{border-top:1px solid var(--line)}
+.learn{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.learn .card{padding:22px}
+.learn ul{margin:8px 0 0;padding-left:18px;font-size:14.5px;color:var(--sub)}
+.learn li{margin-bottom:6px}
+
+footer{padding:40px 0 56px;border-top:1px solid var(--line);font-size:14px;color:var(--sub)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media screen and (max-width:900px){
+  .hero-grid,.feat,.feat:nth-of-type(even),.two,.cases,.learn{grid-template-columns:1fr}
+  .feat:nth-of-type(even) .txt{order:0}
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .stack{grid-template-columns:1fr 1fr}
+  .pse{grid-template-columns:1fr}
+  .hero h1{font-size:36px}
+}
+@media screen and (max-width:600px){
+  .wrap{padding:0 16px}
+  section{padding:44px 0}
+  .top nav{display:none}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stack{grid-template-columns:1fr}
+  .flow{flex-direction:column;align-items:stretch}
+  .flow .arr{transform:rotate(90deg);text-align:center}
+  .role th{width:96px}
+  h2{font-size:24px}
+  .arch{overflow-x:auto;padding:12px}
+  .arch svg{min-width:720px}
+}
+
+/* ---------- PDF(A4) ---------- */
+@page{size:A4;margin:12mm 12mm 12mm}
+@media print{
+  body{background:#fff;font-size:10.5pt;line-height:1.55}
+  .top,.btns,.no-print{display:none!important}
+  .wrap{max-width:none;padding:0}
+  section{padding:0;border:0;break-before:page}
+  .hero{break-before:auto;background:none;padding:0}
+  .hero-grid{grid-template-columns:1fr 1fr;gap:20px}
+  .hero h1{font-size:28pt}
+  .hero h1 small{font-size:13pt}
+  .hero p.one{font-size:12pt}
+  .stats{grid-template-columns:repeat(6,1fr);gap:8px;margin-top:18px}
+  .stat{padding:10px}
+  .stat b{font-size:17pt}
+  .card,.shot{box-shadow:none}
+  h2{font-size:18pt}
+  .lead{margin-bottom:14px}
+  .eyebrow{font-size:9pt}
+  .print-overview{margin-top:22px}
+  .pse{gap:10px}.pse .card{padding:12px}.pse p{font-size:9.5pt}
+  .flow{margin-top:12px}.flow .step{padding:8px 6px;font-size:9.5pt;min-width:0}
+  .feat,.feat:nth-of-type(even){grid-template-columns:1fr 1.2fr;gap:16px;margin-bottom:16px;break-inside:avoid}
+  .feat:nth-of-type(even) .txt{order:0}
+  #features .wrap{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;align-items:start}
+  #features .wrap>p,#features .wrap>h2{grid-column:1/-1}
+  #features .feat,#features .feat:nth-of-type(even){grid-template-columns:1fr;gap:8px;margin:0 0 10px}
+  #features .pair{grid-template-columns:1fr 1fr;gap:6px}
+  .feat h3{font-size:12pt}
+  .feat .txt ul{font-size:9.5pt}
+  .arch{padding:10px}
+  .two{gap:10px;margin-top:10px}.sec{padding:12px}.sec ul{font-size:9.3pt}
+  .cases{gap:9px}.case{padding:11px 13px;break-inside:avoid}.case h3{font-size:11pt;margin-bottom:6px}
+  .case dl{font-size:9pt;grid-template-columns:30px 1fr;gap:3px 8px}.case .res{margin-top:7px;padding:5px 9px;font-size:8.8pt}
+  .stack{grid-template-columns:repeat(4,1fr);gap:10px}.stack .card{padding:12px}.stack p{font-size:9.3pt}
+  .role{padding:12px;margin-top:10px}.role table{font-size:9.5pt}.role th,.role td{padding:5px 8px 5px 0}
+  .learn{gap:10px;margin-top:10px}.learn .card{padding:12px}.learn ul{font-size:9.5pt}
+  footer{border:0;padding:14px 0 0;font-size:9pt}
+  a{color:var(--accent-d)}
+  .print-url::after{content:" (" attr(href) ")";font-size:8.5pt;color:var(--mute)}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#">
+      <svg width="22" height="25" viewBox="30 0 452 512" aria-hidden="true"><path fill="currentColor" d="M71 460 L30 0 L482 0 L441 460 L256 512 Z"/><text x="256" y="372" text-anchor="middle" fill="#fff" font-size="360" font-weight="700" font-family="Pretendard,sans-serif">S</text></svg>
+      SecuQuest
+    </a>
+    <nav>
+      <a href="#overview">개요</a><a href="#features">핵심 기능</a><a href="#arch">구조 · 보안</a><a href="#cases">문제 해결</a><a href="#stack">기술 · 역할</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ============ 1. HERO ============ -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Portfolio · 웹 보안 실습형 학습 플랫폼</p>
+        <h1>SecuQuest<small>공격해 보고, 막는 법까지 배우는 웹 보안 실습</small></h1>
+        <p class="one">8개 웹 취약점을 <b>하 → 중 → 상 → 안전</b> 4단계로 직접 실습하며, 공격이 통하는 코드와 막히는 코드의 차이를 체감하도록 만든 <b>한국어 학습 플랫폼</b>입니다.</p>
+        <dl class="meta">
+          <dt>개발</dt><dd>오현명 · 1인 개발 (기획 · 설계 · 프론트엔드 · 백엔드 · 인프라)</dd>
+          <dt>기간</dt><dd>2026.08 ~ 2026.09.30 · 부트캠프 캡스톤 프로젝트</dd>
+          <dt>스택</dt><dd>Vue 3 · Flask 3 · MariaDB · Redis · Nginx · Docker Compose</dd>
+          <dt>GitHub</dt><dd><a href="https://github.com/gusaud9424-source/Final-Project">github.com/gusaud9424-source/Final-Project</a></dd>
+        </dl>
+        <div class="btns">
+          <a class="btn" href="https://github.com/gusaud9424-source/Final-Project">GitHub 저장소</a>
+          <a class="btn ghost" href="SecuQuest_portfolio.pdf">PDF 내려받기</a>
+        </div>
+      </div>
+      <img class="shot" src="images/02-dashboard.png" alt="SecuQuest 학습 대시보드 화면">
+    </div>
+
+    <div class="stats">
+      <div class="stat card"><b>8 × 4</b><span>취약점 과목 × 실습 레벨</span></div>
+      <div class="stat card"><b>400</b><span>퀴즈 문항</span></div>
+      <div class="stat card"><b>48</b><span>REST API</span></div>
+      <div class="stat card"><b>10</b><span>DB 테이블</span></div>
+      <div class="stat card"><b>6</b><span>Docker 컨테이너</span></div>
+      <div class="stat card"><b>79</b><span>설계 · 작업 문서</span></div>
+    </div>
+
+    <!-- 개요 (PDF에서는 1쪽에 함께) -->
+    <div id="overview" class="print-overview" style="margin-top:56px">
+      <p class="eyebrow">Overview</p>
+      <h2>왜 만들었나</h2>
+      <div class="pse">
+        <div class="card"><div class="k">문제</div><p>취약점을 이론으로만 배우면 "왜 막아야 하는지"가 와닿지 않고, 실제로 공격해 볼 안전한 한국어 실습 환경은 드뭅니다.</p></div>
+        <div class="card"><div class="k">해결</div><p>같은 취약점을 방어 수준이 다른 4개 레벨로 나눠, 공격이 성공하는 코드부터 완전히 막히는 코드까지 순서대로 직접 시도하게 했습니다.</p></div>
+        <div class="card"><div class="k">안전</div><p>위험한 실습 코드는 네트워크가 끊긴 격리 컨테이너에서만 실행하고, 서비스 자체는 CSP · CSRF · Rate Limit · 감사 로그로 보호합니다.</p></div>
+      </div>
+      <div class="flow" aria-label="학습 흐름">
+        <div class="step">수강신청<small>8개 과목</small></div><span class="arr">→</span>
+        <div class="step">과목 정보<small>원리 · 피해 · 방어</small></div><span class="arr">→</span>
+        <div class="step lv">하 · 중 · 상<small>순차 잠금 · 단계별 힌트</small></div><span class="arr">→</span>
+        <div class="step safe">안전<small>방어 원리 확인</small></div><span class="arr">→</span>
+        <div class="step">진도율 · 보상<small>32레벨 기준</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. FEATURES ============ -->
+<section id="features">
+  <div class="wrap">
+    <p class="eyebrow">Key Features</p>
+    <h2>핵심 기능</h2>
+    <p class="lead">학습자가 막힘없이 "개념 → 실습 → 방어 확인"으로 이어지도록, 그리고 운영자가 이탈 지점을 볼 수 있도록 설계했습니다.</p>
+
+    <div class="feat">
+      <div class="txt">
+        <div class="num">01 · 실습</div>
+        <h3>4단계 레벨 실습과 순차 잠금</h3>
+        <ul>
+          <li>XSS 3종 · Command Injection · SQL Injection(일반 · Blind) · File Upload · CSRF, <b>8과목 × 4레벨</b></li>
+          <li>이전 레벨을 통과해야 다음 레벨이 열림 — <b>화면 + 서버(403) 이중 검사</b></li>
+          <li><b>안전 레벨</b>에서는 같은 공격이 막히는 것을 확인하며 방어 원리를 학습</li>
+          <li>실습 코드는 <b>격리 Sandbox 컨테이너</b>, XSS 는 전용 CSP + sandbox iframe 에서만 실행</li>
+        </ul>
+      </div>
+      <img class="shot" src="images/07-practice.png" alt="실습 화면 — 하·중 통과, 상 진행 중, 안전 잠김">
+    </div>
+
+    <div class="feat">
+      <div class="txt">
+        <div class="num">02 · 학습 지원</div>
+        <h3>단계별 힌트 · 개념 확인 · 퀴즈</h3>
+        <ul>
+          <li>힌트는 한 번에 하나씩 열리고 <b>5P → 10P → 20P</b> 포인트 차감 — 정답을 바로 보지 않도록 유도</li>
+          <li>개념 확인 문제는 <b>맞음 / 틀림만 공개</b>(정답 비공개)해 찍어서 넘어가지 않게 함</li>
+          <li>과목별 3회차 퀴즈(문항 은행 400개), 자료실 학습 문서 내려받기</li>
+        </ul>
+      </div>
+      <div class="pair">
+        <img class="shot" src="images/12-hint.png" alt="힌트 패널 — 다음 힌트 열기 비용 표시">
+        <img class="shot" src="images/06-course-info.png" alt="과목 정보 — 원리·비유·피해·방어">
+      </div>
+    </div>
+
+    <div class="feat">
+      <div class="txt">
+        <div class="num">03 · 동기 부여</div>
+        <h3>레벨 기준 진도율과 보상 시스템</h3>
+        <ul>
+          <li>진도율 = <b>통과한 실습 레벨 ÷ 32</b> — 실제로 실습한 만큼만 오르도록 기준을 명확히 함</li>
+          <li>경험치 · 레벨 · 포인트, 레벨 클리어 보물상자, 미션 보상, 14일 출석 체크판</li>
+          <li>과목별 하 · 중 · 상 · 안전 통과 현황을 한 화면에서 확인</li>
+        </ul>
+      </div>
+      <img class="shot" src="images/03-progress.png" alt="학습 진도 화면 — 과목별 레벨 통과 현황">
+    </div>
+
+    <div class="feat">
+      <div class="txt">
+        <div class="num">04 · 운영</div>
+        <h3>관리자 대시보드 · 감사 로그</h3>
+        <ul>
+          <li>과목별 평균 진도율, <b>레벨별 통과율로 이탈 지점 파악</b>, 정체 학생 표시, CSV 내보내기</li>
+          <li>회원 검색 · 임시 비밀번호 발급 · 삭제</li>
+          <li>관리자 작업 · 정보 변경 · <b>로그인 실패(24시간 집계)</b>를 감사 로그로 조회</li>
+        </ul>
+      </div>
+      <div class="pair">
+        <img class="shot" src="images/10-admin-progress.png" alt="관리자 학생 진도 — 레벨별 통과율">
+        <img class="shot" src="images/11-admin-audit.png" alt="관리자 감사 로그 — 로그인 실패 집계">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. ARCHITECTURE & SECURITY ============ -->
+<section id="arch">
+  <div class="wrap">
+    <p class="eyebrow">Architecture &amp; Security</p>
+    <h2>시스템 구조와 보안 설계</h2>
+    <p class="lead">"위험한 실습은 격리된 곳에서만, 서비스는 표준 보안으로 안전하게" — 두 영역을 물리적으로 분리했습니다.</p>
+
+    <div class="arch card">
+      <svg viewBox="0 0 960 330" role="img" aria-label="시스템 구조도: 브라우저 → Nginx → 프론트엔드/백엔드 → MariaDB·Redis·Sandbox">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#7A7A85"/></marker>
+        </defs>
+        <!-- zones -->
+        <rect x="190" y="12" width="560" height="306" fill="#F3F6FD" stroke="#C9D4F0" stroke-dasharray="5 4"/>
+        <text x="204" y="34" font-size="13" font-weight="700" fill="#2B4798">서비스 영역 · Docker Compose · 127.0.0.1 바인딩</text>
+        <rect x="770" y="12" width="178" height="306" fill="#FDEEEE" stroke="#EBB7B7" stroke-dasharray="5 4"/>
+        <text x="784" y="34" font-size="13" font-weight="700" fill="#B32626">격리 실습 영역</text>
+
+        <!-- browser -->
+        <rect x="16" y="130" width="140" height="64" fill="#fff" stroke="#1A1D2A"/>
+        <text x="86" y="158" font-size="15" font-weight="700" text-anchor="middle" fill="#1A1D2A">브라우저</text>
+        <text x="86" y="178" font-size="12" text-anchor="middle" fill="#535259">학습자 · 관리자</text>
+        <line x1="156" y1="162" x2="214" y2="162" stroke="#7A7A85" stroke-width="1.6" marker-end="url(#ah)"/>
+        <text x="185" y="152" font-size="11" text-anchor="middle" fill="#535259">:8090</text>
+
+        <!-- nginx -->
+        <rect x="216" y="116" width="150" height="92" fill="#fff" stroke="#3659BE" stroke-width="1.6"/>
+        <text x="291" y="146" font-size="15" font-weight="700" text-anchor="middle" fill="#1A1D2A">Nginx</text>
+        <text x="291" y="166" font-size="11.5" text-anchor="middle" fill="#535259">Reverse Proxy</text>
+        <text x="291" y="184" font-size="11.5" text-anchor="middle" fill="#535259">경로별 CSP · 보안 헤더</text>
+
+        <!-- frontend -->
+        <rect x="414" y="52" width="150" height="74" fill="#fff" stroke="#1A1D2A"/>
+        <text x="489" y="80" font-size="15" font-weight="700" text-anchor="middle" fill="#1A1D2A">frontend</text>
+        <text x="489" y="100" font-size="11.5" text-anchor="middle" fill="#535259">Vue 3 · Vite · Pinia</text>
+        <text x="489" y="116" font-size="11" text-anchor="middle" fill="#535259">+ XSS 실습 전용 프레임</text>
+        <!-- backend -->
+        <rect x="414" y="196" width="150" height="74" fill="#fff" stroke="#1A1D2A"/>
+        <text x="489" y="224" font-size="15" font-weight="700" text-anchor="middle" fill="#1A1D2A">backend</text>
+        <text x="489" y="244" font-size="11.5" text-anchor="middle" fill="#535259">Flask 3 · /api/v1</text>
+        <text x="489" y="260" font-size="10.5" text-anchor="middle" fill="#535259">CSRF · Rate Limit · 감사 로그</text>
+
+        <path d="M366 140 L390 140 L390 89 L412 89" fill="none" stroke="#7A7A85" stroke-width="1.6" marker-end="url(#ah)"/>
+        <text x="396" y="80" font-size="11" fill="#535259">/</text>
+        <path d="M366 184 L390 184 L390 233 L412 233" fill="none" stroke="#7A7A85" stroke-width="1.6" marker-end="url(#ah)"/>
+        <text x="384" y="214" font-size="11" text-anchor="end" fill="#535259">/api/</text>
+
+        <!-- db / redis -->
+        <rect x="612" y="160" width="124" height="54" fill="#fff" stroke="#1A1D2A"/>
+        <text x="674" y="184" font-size="14" font-weight="700" text-anchor="middle" fill="#1A1D2A">MariaDB</text>
+        <text x="674" y="202" font-size="11" text-anchor="middle" fill="#535259">회원 · 진도 · 감사 로그</text>
+        <rect x="612" y="236" width="124" height="54" fill="#fff" stroke="#1A1D2A"/>
+        <text x="674" y="260" font-size="14" font-weight="700" text-anchor="middle" fill="#1A1D2A">Redis</text>
+        <text x="674" y="278" font-size="11" text-anchor="middle" fill="#535259">세션 · Rate Limit</text>
+        <line x1="564" y1="222" x2="610" y2="194" stroke="#7A7A85" stroke-width="1.6" marker-end="url(#ah)"/>
+        <line x1="564" y1="248" x2="610" y2="260" stroke="#7A7A85" stroke-width="1.6" marker-end="url(#ah)"/>
+
+        <!-- sandbox -->
+        <rect x="786" y="90" width="148" height="150" fill="#fff" stroke="#DD3333" stroke-width="1.6"/>
+        <text x="860" y="118" font-size="15" font-weight="700" text-anchor="middle" fill="#1A1D2A">sandbox</text>
+        <text x="860" y="140" font-size="11.5" text-anchor="middle" fill="#535259">network = none</text>
+        <text x="860" y="158" font-size="11.5" text-anchor="middle" fill="#535259">read-only rootfs</text>
+        <text x="860" y="176" font-size="11.5" text-anchor="middle" fill="#535259">cap_drop: ALL</text>
+        <text x="860" y="194" font-size="11.5" text-anchor="middle" fill="#535259">메모리 128MB · PID 64</text>
+        <text x="860" y="212" font-size="11.5" text-anchor="middle" fill="#535259">CPU 0.5 · /tmp 16MB</text>
+        <path d="M530 196 L530 150 L784 150" fill="none" stroke="#DD3333" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#ah)"/>
+        <text x="690" y="142" font-size="11" text-anchor="middle" fill="#B32626">Unix 소켓으로만 전달</text>
+      </svg>
+    </div>
+
+    <div class="two">
+      <div class="sec card">
+        <h3><span class="dot" style="background:#DD3333"></span>위험한 것은 격리</h3>
+        <ul>
+          <li><b>Sandbox 컨테이너</b>: 네트워크 없음 · 읽기 전용 · 권한 전부 제거 · 자원 제한 — 7개 항목 실측 점검</li>
+          <li>실습 코드는 공유 볼륨의 <b>Unix 소켓</b>으로만 전달, 서비스 DB 에 접근 불가</li>
+          <li>XSS 실습은 <b>별도 경로 + 실습 전용 CSP</b>(외부 통신 차단) + sandbox iframe</li>
+        </ul>
+      </div>
+      <div class="sec card">
+        <h3><span class="dot" style="background:#3659BE"></span>서비스는 표준 보안</h3>
+        <ul>
+          <li><b>인증</b>: Redis 세션, 로그인 시 세션 ID 재발급, bcrypt, HttpOnly · SameSite 쿠키</li>
+          <li><b>요청 위조 · 남용</b>: CSRF 토큰 자동 첨부, 로그인 분당 10회 · 인증코드 분당 5회 제한</li>
+          <li><b>헤더</b>: 앱 <code>script-src 'self'</code>, API <code>default-src 'none'</code>, 클릭재킹 · MIME 스니핑 방어</li>
+          <li><b>계정 보호</b>: 가입 여부 비노출, 인증코드 5분 만료 · 5회 오답 무효, 감사 로그</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. CASES ============ -->
+<section id="cases">
+  <div class="wrap">
+    <p class="eyebrow">Problem Solving</p>
+    <h2>문제 해결 사례</h2>
+    <p class="lead">각 사례는 원인 → 해결 → 검증을 저장소 <code>docs/</code> 에 문서로 남겼습니다.</p>
+
+    <div class="cases">
+      <article class="case card">
+        <span class="no">CASE 01 · 보안 vs 기능</span>
+        <h3>엄격한 CSP 를 켜자 XSS 실습이 멈춤</h3>
+        <dl>
+          <dt>원인</dt><dd><code>srcdoc</code> iframe 은 부모 페이지의 CSP 를 그대로 상속 → 실습용 스크립트까지 차단</dd>
+          <dt>해결</dt><dd>실습 전용 페이지로 분리해 <b>그 경로에만</b> 실습용 CSP(인라인 허용 · 외부 통신 차단) 적용, <code>postMessage</code> 로 내용 전달</dd>
+        </dl>
+        <div class="res">앱 전체는 script-src 'self' 유지 + 실습은 정상 동작</div>
+      </article>
+
+      <article class="case card">
+        <span class="no">CASE 02 · 정보 노출</span>
+        <h3>응답 시간 차이로 가입 여부가 드러남</h3>
+        <dl>
+          <dt>원인</dt><dd>없는 아이디는 bcrypt 비교를 건너뛰어 응답이 눈에 띄게 빠름</dd>
+          <dt>해결</dt><dd>없는 아이디도 <b>더미 해시로 bcrypt 비교</b>해 응답 시간 통일, 실패 사유는 감사 로그에만 구분 기록</dd>
+        </dl>
+        <div class="res">화면 응답은 동일 · 관리자는 24시간 실패 집계로 이상 징후 확인</div>
+      </article>
+
+      <article class="case card">
+        <span class="no">CASE 03 · 데이터 무결성</span>
+        <h3>감사 로그가 컨테이너와 함께 사라짐</h3>
+        <dl>
+          <dt>원인</dt><dd>감사 기록이 서버 로그 파일에만 남아 컨테이너 재생성 시 유실</dd>
+          <dt>해결</dt><dd><code>audit_logs</code> 테이블에 <b>변경과 같은 트랜잭션</b>으로 기록 (변경 성공 ⇔ 기록 성공), 개인정보 값은 미기록</dd>
+        </dl>
+        <div class="res">회원 삭제 후에도 기록 보존 · 관리자 화면에서 검색</div>
+      </article>
+
+      <article class="case card">
+        <span class="no">CASE 04 · 학습 설계</span>
+        <h3>레벨을 열기만 해도 "통과"</h3>
+        <dl>
+          <dt>원인</dt><dd>안전 레벨은 공격이 항상 막히므로, 페이지 조회만으로 통과 조건이 충족됨</dd>
+          <dt>해결</dt><dd><b>직접 값을 넣어 시도한 요청만</b> 통과로 인정하도록 서버 판정 수정, 통과 즉시 화면 갱신</dd>
+        </dl>
+        <div class="res">8과목 × 4레벨 = 32레벨 전체 수동 통과 검증</div>
+      </article>
+
+      <article class="case card">
+        <span class="no">CASE 05 · 동시성</span>
+        <h3>힌트 포인트 차감의 중복 · 경쟁 상태</h3>
+        <dl>
+          <dt>원인</dt><dd>버튼을 빠르게 두 번 누르거나 재수강하면 같은 힌트가 두 번 차감될 수 있음</dd>
+          <dt>해결</dt><dd>포인트 원장에 힌트별 <b>UNIQUE 참조키</b> + 차감 시 <b>행 잠금(SELECT … FOR UPDATE)</b>, 열린 힌트만 응답</dd>
+        </dl>
+        <div class="res">재수강 후에도 산 힌트 유지 · 중복 차감 0건</div>
+      </article>
+
+      <article class="case card">
+        <span class="no">CASE 06 · 지표 설계</span>
+        <h3>진도율 100% 의 의미가 모호함</h3>
+        <dl>
+          <dt>원인</dt><dd>미션 · 퀴즈 · 개념 문제가 섞여 "실습을 다 했는지"를 진도율로 알 수 없음</dd>
+          <dt>해결</dt><dd>진도율을 <b>실습 레벨 통과 수 ÷ 전체 32레벨</b>로 재정의, 학습자 · 관리자 화면과 이탈 분석을 같은 기준으로 통일</dd>
+        </dl>
+        <div class="res">관리자가 "어느 레벨에서 멈추는지"를 바로 확인</div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. STACK & ROLE ============ -->
+<section id="stack">
+  <div class="wrap">
+    <p class="eyebrow">Tech &amp; Role</p>
+    <h2>기술 스택과 담당 범위</h2>
+    <p class="lead">1인 개발로 기획부터 배포 환경 구성, 점검까지 전 과정을 진행했습니다.</p>
+
+    <div class="stack">
+      <div class="card"><h3>Frontend</h3><p>Vue 3 (Composition API) · Vite · Vue Router · Pinia · Axios · Bootstrap 5 (SCSS) · 디자인 토큰</p></div>
+      <div class="card"><h3>Backend</h3><p>Python 3.12 · Flask 3 · SQLAlchemy · Alembic · Flask-WTF(CSRF) · Flask-Limiter · bcrypt</p></div>
+      <div class="card"><h3>Data</h3><p>MariaDB 11.4 (테이블 10 · 마이그레이션 6) · Redis 7 (세션 · Rate Limit)</p></div>
+      <div class="card"><h3>Infra</h3><p>Docker Compose · Nginx 1.27 · 격리 Sandbox 컨테이너 · Gmail SMTP · SMS 연동</p></div>
+    </div>
+
+    <div class="role card">
+      <table>
+        <tr><th>기획 · 설계</th><td>학습 흐름(개념 → 4단계 실습 → 방어 확인) 설계, 화면 · API · ERD 설계, 진도율 · 보상 규칙 정의</td></tr>
+        <tr><th>프론트엔드</th><td>화면 14개 · 컴포넌트 구현, 디자인 토큰 기반 UI, 실습 프레임 · 힌트 패널, 휴대폰 · 태블릿 반응형</td></tr>
+        <tr><th>백엔드</th><td>REST API 48개, 인증 · 회원 · 아이디/비밀번호 찾기(이메일 · SMS), 실습 판정 · 레벨 잠금, 보상 · 출석, 관리자 · 감사 로그</td></tr>
+        <tr><th>보안 · 인프라</th><td>Sandbox 격리 설계 · 실측 점검, Nginx 경로별 CSP · 보안 헤더, CSRF · Rate Limit, Docker Compose 원클릭 실행</td></tr>
+        <tr><th>품질 · 문서</th><td>전 기능 E2E 점검(브라우저 자동화), 32레벨 수동 통과 검증, 작업 기록 · 개념 설명 문서 79개, 5분 시연 시나리오</td></tr>
+      </table>
+    </div>
+
+    <div class="learn">
+      <div class="card">
+        <h3>배운 점</h3>
+        <ul>
+          <li>보안과 기능이 충돌할 때 <b>보호 범위를 경로 단위로 나누는 설계</b>가 둘 다 지키는 방법이라는 것</li>
+          <li>"동작한다"와 "의도대로 판정한다"는 다르다 — 통과 조건 · 차감 같은 규칙은 <b>서버에서, 경계 상황까지</b> 검증해야 한다는 것</li>
+          <li>문제를 원인 → 해결 → 검증으로 문서화하니 같은 실수를 반복하지 않고 설명도 쉬워짐</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>다음 개선 계획</h3>
+        <ul>
+          <li>HTTPS 적용과 운영 환경 분리 (현재는 로컬 학습용으로 127.0.0.1 에만 공개)</li>
+          <li>과목별 1회차 전용 개념 확인 문항 추가</li>
+          <li>핵심 API 자동 테스트 · CI 구성으로 회귀 점검 자동화</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>SecuQuest · 오현명 · 2026</span>
+    <span>실습 페이지는 학습을 위해 의도적으로 취약하게 만들어져 로컬에서만 실행합니다 · <a class="print-url" href="https://github.com/gusaud9424-source/Final-Project">GitHub</a></span>
+  </div>
+</footer>
+</body>
+</html>

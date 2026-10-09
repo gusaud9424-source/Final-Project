@@ -2,6 +2,7 @@
 
 > 웹 보안 핵심 취약점을 **직접 공격해 보고, 막는 법까지** 배우는 한국어 실습형 학습 플랫폼
 > 부트캠프 캡스톤 프로젝트 (Topic 05) · 5팀_Security Learning Platform · 오현명
+> **포트폴리오:** [웹 페이지](https://gusaud9424-source.github.io/Final-Project/) · [PDF (5쪽)](docs/SecuQuest_portfolio.pdf)
 
 ![Vue](https://img.shields.io/badge/Vue-3-42b883) ![Flask](https://img.shields.io/badge/Flask-3-000000) ![MariaDB](https://img.shields.io/badge/MariaDB-11.4-003545) ![Redis](https://img.shields.io/badge/Redis-7-dc382d) ![Docker](https://img.shields.io/badge/Docker%20Compose-ready-2496ed)
 
