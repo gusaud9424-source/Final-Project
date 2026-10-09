@@ -14,6 +14,12 @@ def _hash_password(password):
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+def _env(name, default=None):
+    """빈 값("KEY=")은 없는 것으로 취급"""
+    value = os.environ.get(name)
+    return default if value is None or value.strip() == "" else value.strip()
+
+
 def _normalize_phone(phone):
     return re.sub(r"\D", "", phone or "")
 
@@ -28,7 +34,7 @@ def _seed_user(username, role, name, email, phone, password=None):
             db.session.commit()
         return user, None
 
-    generated_password = password is None
+    generated_password = not password  # None · 빈 문자열 모두 자동 생성 후 1회 출력
     password = password or secrets.token_urlsafe(9)
     user = User(
         username=username,
@@ -131,14 +137,15 @@ with app.app_context():
         name="관리자",
         email="admin@secuquest.local",
         phone="01000000000",
+        password=_env("SEED_ADMIN_PASSWORD"),
     )
     student, student_password = _seed_user(
         username="student1",
         role="student",
         name="학습자1",
-        email=os.environ["SEED_STUDENT_EMAIL"],
-        phone=os.environ["SEED_STUDENT_PHONE"],
-        password=os.environ.get("SEED_STUDENT_PASSWORD"),
+        email=_env("SEED_STUDENT_EMAIL", "student1@secuquest.local"),
+        phone=_env("SEED_STUDENT_PHONE", "01000000002"),
+        password=_env("SEED_STUDENT_PASSWORD"),
     )
     demo, demo_password = _seed_user(
         username="demo1",
@@ -146,7 +153,7 @@ with app.app_context():
         name="시연용 학습자",
         email="demo1@secuquest.local",
         phone="01000000001",
-        password=os.environ.get("SEED_STUDENT_PASSWORD"),
+        password=_env("SEED_STUDENT_PASSWORD"),
     )
     courses = _seed_catalog_courses()
     _seed_course_data(student, courses["command-injection"])

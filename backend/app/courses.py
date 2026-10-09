@@ -85,7 +85,16 @@ def _concept_session_key(slug):
 
 
 def _concept_pool(slug):
-    return CONCEPT_QUESTIONS.get(slug, [])
+    """1회차 확인 문제 출제 범위
+
+    - concept_check.py 에 전용 문항이 5개 이상 있으면 그 문항 사용
+    - 아직 없으면 3회차 퀴즈 문항(과목당 50개)에서 5개를 무작위로 출제
+      → 전용 문항을 작성하기 전에도 1회차가 막히지 않고 진도 100% 까지 이어짐
+    """
+    own = CONCEPT_QUESTIONS.get(slug, [])
+    if len(own) >= CONCEPT_CHECK_COUNT:
+        return own
+    return QUIZ_BANKS.get(slug, [])
 
 
 @bp.get("/<slug>/concept-check")

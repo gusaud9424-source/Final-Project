@@ -114,15 +114,15 @@ docker compose exec backend python seed.py     # 과목 · 기본 계정 생성
 
 ### 4. 기본 계정
 
-`seed.py` 가 아래 계정을 만들고, **비밀번호는 실행 시 콘솔에 한 번만 출력**합니다(무작위 생성).
+`seed.py` 가 아래 시연용 계정을 만듭니다. 비밀번호는 `backend/.env` 의 값입니다(로컬 시연 전용, 비워 두면 무작위 생성 후 콘솔에 1회 출력).
 
 | 아이디 | 역할 | 비고 |
 |---|---|---|
-| `admin` | 관리자 | 회원관리 · 학생 현황 |
-| `student1` | 학생 | 일반 학습자 |
-| `demo1` | 학생 | 시연용 학습자 |
+| `admin` | 관리자 | `Admin1234` — 회원관리 · 학생 현황 · 감사 로그 |
+| `student1` | 학생 | `Student1234` — 일반 학습자 |
+| `demo1` | 학생 | `Student1234` — 시연용 학습자 |
 
-- 학생 비밀번호를 고정하려면 `backend/.env` 의 `SEED_STUDENT_PASSWORD` 를 지정합니다.
+- 비밀번호를 바꾸려면 `backend/.env` 의 `SEED_ADMIN_PASSWORD` · `SEED_STUDENT_PASSWORD` 를 수정합니다.
 - 비밀번호를 잊었다면: `docker compose exec backend flask set-password --username admin`
 - 새 학생 계정은 로그인 화면의 **회원가입**으로 만들 수 있습니다.
 
