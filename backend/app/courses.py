@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request, session
 from sqlalchemy.exc import IntegrityError
 
 from . import db, limiter
-from .models import TASK_KEYS, Course, Enrollment, Reward
+from .models import TASK_KEYS, Course, Enrollment, PointLedger, Reward, User
 from .practice_builders import PRACTICE_BUILDERS
 from .quiz_bank import QUIZ_BANKS
 from .concept_check import CONCEPT_QUESTIONS
@@ -23,6 +23,7 @@ from .progress import (
     tier_progress_keys,
     serialize_datetime,
 )
+from .rewards import points_balance
 from .rewards import COURSE_REWARD_SOURCES, COURSE_REWARD_TYPE, LEDGER_MODELS, RANGES, _apply_claim, _balance, _balance_after_claim, _reward_types, roll_pending
 
 bp = Blueprint("courses", __name__, url_prefix="/api/v1/courses")
@@ -144,7 +145,8 @@ def concept_check_submit(slug):
         chosen = answers.get(qid)
         ok = isinstance(chosen, int) and not isinstance(chosen, bool) and chosen == q["answer"]
         correct += ok
-        results.append({"id": qid, "correct": ok, "answer": q["answer"], "explanation": q["explanation"]})
+        # 정답 번호 · 해설은 내려주지 않음 (맞음/틀림만) — 문항 은행이 3회차 퀴즈와 겹칠 수 있어 정답 노출 방지
+        results.append({"id": qid, "correct": ok})
 
     # 한 번 출제한 문항으로는 한 번만 채점
     session.pop(_concept_session_key(course.slug), None)
@@ -166,25 +168,106 @@ def complete_concept(slug):
     return jsonify(message="개념 확인 문제를 풀어 3문항 이상 맞혀야 완료됩니다."), 400
 
 
+# ── 실습 힌트: 한 개씩 열 때마다 포인트 차감 ──
+# 단계별 증가: 1번째 5P · 2번째 10P · 3번째부터 20P. 한 번 연 힌트는 다시 볼 때 무료.
+# 연 기록은 point_ledger(source="hint", ref="hint:<과목>:<레벨>:<번호>")의 차감 행으로 남긴다
+# → UNIQUE(user_id, source, ref) 로 같은 힌트 중복 차감 방지, 포인트 잔액도 자동 반영
+HINT_COSTS = (5, 10, 20)
+
+
+def _hint_cost(index):
+    return HINT_COSTS[min(index, len(HINT_COSTS) - 1)]
+
+
+def _hint_ref(slug, tier, index):
+    return f"hint:{slug}:{tier}:{index}"
+
+
+def _revealed_hint_count(user_id, slug, tier, total):
+    """앞에서부터 연속으로 연 힌트 개수"""
+    refs = {
+        r for (r,) in db.session.query(PointLedger.ref).filter(
+            PointLedger.user_id == user_id,
+            PointLedger.source == "hint",
+            PointLedger.ref.like(f"hint:{slug}:{tier}:%"),
+        )
+    }
+    count = 0
+    while count < total and _hint_ref(slug, tier, count) in refs:
+        count += 1
+    return count
+
+
+def _hint_context(slug):
+    """(user, course, builder, difficulty, hints, error)"""
+    user, course, error = _load_enrolled_course(slug)
+    if error:
+        return None, None, None, None, None, error
+    builder = PRACTICE_BUILDERS.get(course.slug)
+    if not builder:
+        return None, None, None, None, None, (jsonify(message="이 과목에는 아직 실습이 없습니다."), 404)
+    payload = request.get_json(silent=True) or {}
+    difficulty = request.args.get("difficulty") or payload.get("difficulty", "")
+    if difficulty not in builder.difficulties:
+        return None, None, None, None, None, (jsonify(message="지원하지 않는 난이도입니다."), 400)
+    # 잠긴 레벨의 힌트는 제공하지 않는다(하 → 중 → 상 순서 학습)
+    if not is_tier_unlocked(difficulty, cleared_tiers(user.id, course.id)):
+        return None, None, None, None, None, (jsonify(message=_TIER_LOCKED_MESSAGE), 403)
+    return user, course, builder, difficulty, builder.hints(difficulty), None
+
+
+def _hint_state(user, course, difficulty, hints):
+    revealed = _revealed_hint_count(user.id, course.slug, difficulty, len(hints))
+    return {
+        "total": len(hints),
+        "hints": hints[:revealed],  # 이미 연 힌트만 내려줌 (안 연 힌트 내용은 보내지 않음)
+        "costs": [_hint_cost(i) for i in range(len(hints))],
+        "nextCost": _hint_cost(revealed) if revealed < len(hints) else None,
+        "points": points_balance(user.id),
+    }
+
+
 @bp.get("/<slug>/practice/hints")
 def practice_hints(slug):
-    user, course, error = _load_enrolled_course(slug)
+    user, course, _builder, difficulty, hints, error = _hint_context(slug)
+    if error:
+        return error
+    return jsonify(**_hint_state(user, course, difficulty, hints))
+
+
+@bp.post("/<slug>/practice/hints/reveal")
+@limiter.limit("30 per minute")
+def reveal_practice_hint(slug):
+    """다음 힌트 1개 열기 (포인트 차감)"""
+    user, course, _builder, difficulty, hints, error = _hint_context(slug)
     if error:
         return error
 
-    builder = PRACTICE_BUILDERS.get(course.slug)
-    if not builder:
-        return jsonify(message="이 과목에는 아직 실습이 없습니다."), 404
+    # 같은 사용자의 동시 요청을 줄 세워 잔액 확인 · 차감이 꼬이지 않게 함
+    db.session.query(User).filter_by(id=user.id).with_for_update().one()
+    index = _revealed_hint_count(user.id, course.slug, difficulty, len(hints))
+    if index >= len(hints):
+        db.session.rollback()
+        return jsonify(message="모든 힌트를 이미 열었습니다.", **_hint_state(user, course, difficulty, hints)), 409
 
-    difficulty = request.args.get("difficulty", "")
-    if difficulty not in builder.difficulties:
-        return jsonify(message="지원하지 않는 난이도입니다."), 400
+    cost = _hint_cost(index)
+    balance = points_balance(user.id)
+    if balance < cost:
+        db.session.rollback()
+        return jsonify(message=f"포인트가 부족합니다. (필요 {cost}P · 보유 {balance}P)"), 400
 
-    # 잠긴 레벨의 힌트는 제공하지 않는다(하 → 중 → 상 순서 학습)
-    if not is_tier_unlocked(difficulty, cleared_tiers(user.id, course.id)):
-        return jsonify(message=_TIER_LOCKED_MESSAGE), 403
-
-    return jsonify(hints=builder.hints(difficulty))
+    db.session.add(PointLedger(
+        user_id=user.id,
+        source="hint",
+        ref=_hint_ref(course.slug, difficulty, index),
+        amount=-cost,
+        reason=f"{course.title} {TIER_LABELS.get(difficulty, difficulty)} 레벨 힌트 {index + 1}",
+    ))
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()  # 이미 연 힌트(중복 요청) → 차감 없이 현재 상태 반환
+    return jsonify(cost=cost, **_hint_state(user, course, difficulty, hints))
 
 
 _TIER_LOCKED_MESSAGE = "이전 레벨을 먼저 통과해야 이 레벨을 학습할 수 있습니다."

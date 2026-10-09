@@ -36,7 +36,7 @@
             <span>{{ opt }}</span>
           </label>
           <p v-if="resultOf(q.id)" class="sq-concept__explain">
-            <strong>{{ resultOf(q.id).correct ? "정답" : "오답" }}</strong> — {{ resultOf(q.id).explanation }}
+            <strong>{{ resultOf(q.id).correct ? "맞았습니다" : "틀렸습니다" }}</strong>
           </p>
         </fieldset>
 
@@ -124,11 +124,13 @@ function resultOf(id) {
   return result.value?.results.find((r) => r.id === id) || null;
 }
 
-// 채점 후 정답 보기는 초록, 내가 고른 오답은 빨강으로 표시
+// 채점 후 내가 고른 보기만 맞으면 초록, 틀리면 빨강 (정답 보기는 공개하지 않음)
 function optionClass(id, index) {
   const r = resultOf(id);
   if (!r) return {};
-  return { "is-answer": r.answer === index, "is-wrong": !r.correct && answers.value[id] === index };
+  // 정답 보기는 표시하지 않고, 내가 고른 보기의 맞음/틀림만 표시
+  const chosen = answers.value[id] === index;
+  return { "is-answer": chosen && r.correct, "is-wrong": chosen && !r.correct };
 }
 </script>
 

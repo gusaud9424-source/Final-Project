@@ -179,40 +179,50 @@
           <!-- 단계별 힌트: 한 번에 하나씩 펼쳐 스스로 생각할 시간을 준다 -->
           <div v-if="hintsOpen" class="sq-hints">
             <p v-if="hintsLoading" class="sq-chapter__status">힌트 불러오는 중...</p>
-            <p v-else-if="!hints.length" class="sq-chapter__status">이 레벨에는 힌트가 없습니다.</p>
+            <p v-else-if="!hintTotal" class="sq-chapter__status">이 레벨에는 힌트가 없습니다.</p>
             <template v-else>
               <div class="sq-hints__head">
                 <span class="sq-hints__title">
                   <i class="bi bi-lightbulb" aria-hidden="true"></i>
                   {{ TIER_META[selectedTier].label }} 레벨 힌트
                 </span>
-                <span class="sq-hints__count">{{ revealedCount }} / {{ hints.length }}</span>
+                <span class="sq-hints__count">{{ hints.length }} / {{ hintTotal }}</span>
               </div>
               <div class="sq-hints__bar" aria-hidden="true">
                 <span
-                  v-for="(hint, i) in hints"
-                  :key="i"
+                  v-for="n in hintTotal"
+                  :key="n"
                   class="sq-hints__dot"
-                  :class="{ 'is-on': i < revealedCount }"
+                  :class="{ 'is-on': n <= hints.length }"
                 ></span>
               </div>
               <ol class="sq-hints__list">
-                <li v-for="(hint, i) in hints.slice(0, revealedCount)" :key="i" class="sq-hints__item">
+                <li v-for="(hint, i) in hints" :key="i" class="sq-hints__item">
                   <span class="sq-hints__step">힌트 {{ i + 1 }}</span>
                   <p class="sq-hints__text">{{ hint }}</p>
                 </li>
               </ol>
               <div class="sq-hints__actions">
-                <button
-                  v-if="revealedCount < hints.length"
-                  type="button"
-                  class="sq-btn sq-btn--ghost"
-                  @click="revealedCount++"
-                >
-                  다음 힌트 보기 ({{ revealedCount + 1 }}/{{ hints.length }})
-                </button>
+                <template v-if="hints.length < hintTotal">
+                  <button
+                    type="button"
+                    class="sq-btn sq-btn--ghost"
+                    :disabled="hintRevealing || hintPoints < nextHintCost"
+                    @click="revealHint"
+                  >
+                    {{ hintRevealing ? "여는 중..." : `${hints.length ? "다음 힌트" : "힌트"} 열기 (${hints.length + 1}/${hintTotal}) · -${nextHintCost}P` }}
+                  </button>
+                  <span class="sq-hints__points">
+                    보유 {{ hintPoints }}P
+                    <template v-if="hintPoints < nextHintCost"> · 포인트가 부족합니다 (출석 · 미션 보상으로 모을 수 있어요)</template>
+                  </span>
+                </template>
                 <p v-else class="sq-hints__done">모든 힌트를 확인했습니다. 직접 시도해 보세요!</p>
               </div>
+              <p v-if="hintError" class="sq-hints__error" role="alert">{{ hintError }}</p>
+              <p class="sq-hints__cost-note">
+                힌트는 열 때마다 포인트가 차감됩니다 ({{ hintCostText }}). 한 번 연 힌트는 다시 볼 때 무료입니다.
+              </p>
             </template>
           </div>
         </template>
@@ -262,6 +272,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import client from "@/api/client";
 import { getErrorMessage } from "@/api/errors";
+import { useProfileStore } from "@/stores/profile";
 import VulnerabilityPage from "@/components/common/VulnerabilityPage.vue";
 import XssPractice from "@/components/practice/XssPractice.vue";
 import BlindSqlPractice from "@/components/practice/BlindSqlPractice.vue";
@@ -302,6 +313,7 @@ const INPUT_PLACEHOLDERS = {
 const route = useRoute();
 const enrollStore = useEnrollStore();
 const rewardStore = useRewardStore();
+const profileStore = useProfileStore();
 const slug = route.params.id;
 
 const loading = ref(true);
@@ -336,10 +348,24 @@ const lastResult = ref(null);
 
 const hintsOpen = ref(false);
 const hintsLoading = ref(false);
+// 힌트는 서버에서 한 개씩 열고(포인트 차감), 이미 연 힌트만 내려받는다
 const hints = ref([]);
-const hintsCache = {};
-// 펼친 힌트 개수 (힌트를 열면 1개부터, 레벨을 바꾸면 다시 1개부터)
-const revealedCount = ref(1);
+const hintTotal = ref(0);
+const hintCosts = ref([]);
+const nextHintCost = ref(0);
+const hintPoints = ref(0);
+const hintRevealing = ref(false);
+const hintError = ref("");
+const hintCostText = computed(() => hintCosts.value.map((c) => `${c}P`).join(" → "));
+
+function applyHintState(data) {
+  hints.value = data.hints || [];
+  hintTotal.value = data.total || 0;
+  hintCosts.value = data.costs || [];
+  nextHintCost.value = data.nextCost ?? 0;
+  hintPoints.value = data.points ?? 0;
+  profileStore.points = data.points ?? profileStore.points; // 헤더 프로필 포인트도 갱신
+}
 
 async function loadCourse() {
   const { data } = await client.get(`/courses/${slug}`);
@@ -347,30 +373,42 @@ async function loadCourse() {
 }
 
 async function fetchHints() {
-  if (hintsCache[selectedTier.value]) {
-    hints.value = hintsCache[selectedTier.value];
-    return;
-  }
   hintsLoading.value = true;
+  hintError.value = "";
   try {
     const { data } = await client.get(`/courses/${slug}/practice/hints`, {
       params: { difficulty: selectedTier.value },
     });
-    hintsCache[selectedTier.value] = data.hints;
-    hints.value = data.hints;
-  } catch {
-    hints.value = [];
+    applyHintState(data);
+  } catch (error) {
+    applyHintState({ hints: [], total: 0 });
+    hintError.value = getErrorMessage(error, "힌트를 불러오지 못했습니다.");
   } finally {
     hintsLoading.value = false;
   }
 }
 
+// 다음 힌트 1개 열기 (서버에서 포인트 차감)
+async function revealHint() {
+  if (hintRevealing.value) return;
+  hintRevealing.value = true;
+  hintError.value = "";
+  try {
+    const { data } = await client.post(`/courses/${slug}/practice/hints/reveal`, {
+      difficulty: selectedTier.value,
+    });
+    applyHintState(data);
+  } catch (error) {
+    hintError.value = getErrorMessage(error, "힌트를 열지 못했습니다.");
+    if (error.response?.data?.total !== undefined) applyHintState(error.response.data);
+  } finally {
+    hintRevealing.value = false;
+  }
+}
+
 function toggleHints() {
   hintsOpen.value = !hintsOpen.value;
-  if (hintsOpen.value) {
-    revealedCount.value = 1;
-    fetchHints();
-  }
+  if (hintsOpen.value) fetchHints();
 }
 
 function selectTier(key) {
@@ -378,7 +416,6 @@ function selectTier(key) {
   if (!tier?.unlocked || selectedTier.value === key) return;
   selectedTier.value = key;
   tierNotice.value = "";
-  revealedCount.value = 1;
   if (hintsOpen.value) fetchHints();
 }
 
@@ -683,6 +720,31 @@ onMounted(async () => {
   line-height: 1.6;
   color: var(--sq-text-main);
   white-space: pre-wrap;
+}
+
+.sq-hints__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.sq-hints__points {
+  font-size: 13px;
+  color: var(--sq-text-sub);
+}
+
+.sq-hints__error {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--sq-badge-absent-text);
+}
+
+.sq-hints__cost-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--sq-text-sub);
 }
 
 .sq-hints__done {
