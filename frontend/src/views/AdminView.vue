@@ -36,6 +36,7 @@
     >
       <MemberManagement v-if="active === 'members'" />
       <StudentsOverview v-else-if="active === 'progress'" />
+      <AuditLog v-else-if="active === 'audit'" />
       <AdminPasswordForm v-else-if="active === 'password'" />
     </section>
   </div>
@@ -45,11 +46,13 @@
 import { computed, ref } from "vue";
 import MemberManagement from "@/components/admin/MemberManagement.vue";
 import AdminPasswordForm from "@/components/admin/AdminPasswordForm.vue";
+import AuditLog from "@/components/admin/AuditLog.vue";
 import StudentsOverview from "@/components/dashboard/StudentsOverview.vue";
 
 const TABS = [
   { key: "members", label: "회원관리", icon: "bi-people", desc: "학생 계정을 조회하고 임시 비밀번호 발급 · 삭제를 관리하세요." },
   { key: "progress", label: "학생 진도", icon: "bi-bar-chart-line", desc: "전체 학생의 과목별 진도를 확인하세요." },
+  { key: "audit", label: "감사 로그", icon: "bi-journal-text", desc: "관리자 작업과 계정 보안 변경 기록을 확인하세요. (DB 보관)" },
   { key: "password", label: "비밀번호 변경", icon: "bi-key", desc: "관리자 계정의 비밀번호를 변경하세요." },
 ];
 

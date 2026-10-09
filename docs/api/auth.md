@@ -30,6 +30,7 @@
 | `/api/v1/profile/account` | GET | 예(세션) | 불필요 | 없음 | - | `{"username": "user01", "role": "student", "name": "홍길동", "nickname": "", "email": "user01@example.com", "phone": "01000000000", "createdAt": "2026-10-09T13:00:00"}` | 401(미로그인) |
 | `/api/v1/profile/account` | PATCH | 예(세션) | 필요 | 5/min | `{"name": "홍길동", "nickname": "길동_01", "email": "user01@example.com", "phone": "01000000000", "current_password": "********"}` | 위 계정 정보 + `"message"` (변경 없으면 `"변경된 내용이 없습니다."`) | 400(현재 비밀번호 불일치·형식 오류) / 409(닉네임·이메일 중복) / 401 |
 | `/api/v1/profile/password` | POST | 예(세션) | 필요 | 5/min | `{"current_password": "********", "new_password": "********"}` | `{"message": "비밀번호가 변경되었습니다."}` (성공 시 세션 ID 재발급) | 400(현재 비밀번호 불일치·규칙 위반·기존과 동일) / 401 |
+| `/api/v1/admin/audit-logs` | GET | 예(세션, admin) | 불필요 | 없음 | 쿼리: `action` · `q` · `page` | `{"total": 5, "page": 1, "pageSize": 50, "actions": [...], "items": [{"createdAt": "2026-10-09 18:12:05", "actor": "admin", "action": "delete_user", "actionLabel": "회원 삭제", "target": "victim", "detail": null, "ip": "..."}]}` | 400(알 수 없는 action) / 401 / 403 |
 | `/api/v1/dashboard` | GET | 예(세션) | 불필요 | 없음 | - | student: `{"role": "student", "summary": {...}, "courses": [...]}` / admin: `{"role": "admin", "students": [...]}` | 401(미로그인) |
 | `/api/v1/admin/students` | GET | 예(세션, admin) | 불필요 | 없음 | - | `{"students": [{"id": 1, "name": "...", "email": "...", "courses": [...]}]}` | 401(미로그인) / 403(관리자 아님) |
 

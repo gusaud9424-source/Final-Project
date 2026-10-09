@@ -5,6 +5,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 from sqlalchemy.exc import IntegrityError
 
 from . import db, limiter
+from .audit import record_audit
 from .auth import EMAIL_RE, NAME_MAX, PHONE_RE, _normalize_phone, _password_policy_error
 from .models import User
 from .progress import current_user
@@ -37,14 +38,6 @@ def get_profile():
 # 마이페이지: 회원정보 조회 · 수정 · 비밀번호 변경
 # (닉네임 변경도 여기서만 처리. 비밀번호 확인 없던 PATCH /profile 은 제거)
 # ─────────────────────────────────────────────
-
-def _audit(user, action, detail=""):
-    """인증 관련 변경은 [AUDIT] 로그로 남김 (관리자 기능과 같은 형식)"""
-    suffix = f" {detail}" if detail else ""
-    current_app.logger.info(
-        "[AUDIT] user_id=%s action=%s%s ip=%s", user.id, action, suffix, request.remote_addr
-    )
-
 
 def _check_current_password(user, raw):
     if not isinstance(raw, str) or not raw:
@@ -131,6 +124,7 @@ def update_account():
     user.nickname = nickname or None
     user.email = email
     user.phone = phone
+    record_audit(user, "update_account", detail="fields=" + ",".join(changed))  # 값이 아니라 항목 이름만
     try:
         db.session.commit()
     except IntegrityError:
@@ -138,7 +132,6 @@ def update_account():
         db.session.rollback()
         return jsonify(message="이미 사용 중인 닉네임 또는 이메일입니다."), 409
 
-    _audit(user, "update_account", "fields=" + ",".join(changed))
     return jsonify(message="회원정보가 변경되었습니다.", **_serialize_account(user))
 
 
@@ -164,8 +157,8 @@ def change_password():
         return jsonify(message=error), 400
 
     user.password_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
+    record_audit(user, "change_password")
     db.session.commit()
     # 비밀번호가 바뀌면 세션 ID도 새로 발급 (기존 세션 ID 재사용 차단)
     current_app.session_interface.regenerate(session)
-    _audit(user, "change_password")
     return jsonify(message="비밀번호가 변경되었습니다.")

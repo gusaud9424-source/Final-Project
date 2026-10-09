@@ -11,6 +11,7 @@ from flask_wtf.csrf import generate_csrf
 from sqlalchemy.exc import IntegrityError
 
 from . import db, limiter
+from .audit import record_audit
 from .mailer import send_verification_email
 from .models import User, VerificationCode
 from .sms import send_verification_sms
@@ -359,5 +360,6 @@ def reset_password_confirm():
     db.session.delete(record)  # 한 번 쓴 인증은 삭제 → 같은 인증으로 두 번 변경 불가
     session.pop("reset_user_id", None)
     session.pop("reset_purpose", None)
+    record_audit(user, "reset_password_self", detail="via=" + ("sms" if purpose.endswith("sms") else "email"))
     db.session.commit()
     return jsonify(message="비밀번호가 변경되었습니다.")

@@ -153,3 +153,26 @@ class Reward(db.Model):
     reason = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     claimed_at = db.Column(db.DateTime, nullable=True)
+
+
+class AuditLog(db.Model):
+    """감사 로그: 누가 · 무엇을 · 누구에게 · 어디서 · 언제 (서버 로그가 지워져도 남도록 DB 보관)
+
+    회원이 삭제돼도 기록은 남아야 하므로 users 외래키를 걸지 않고,
+    아이디(username)를 기록 시점 값으로 함께 저장한다.
+    """
+
+    __tablename__ = "audit_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    actor_id = db.Column(db.Integer, nullable=True)  # 행위자 (FK 없음: 탈퇴 · 삭제 후에도 기록 유지)
+    actor_username = db.Column(db.String(80), nullable=True)
+    actor_role = db.Column(db.String(20), nullable=True)
+    action = db.Column(db.String(40), nullable=False)
+    target_id = db.Column(db.Integer, nullable=True)  # 대상 회원 (본인 작업이면 NULL)
+    target_username = db.Column(db.String(80), nullable=True)
+    detail = db.Column(db.String(255), nullable=True)  # 바뀐 항목 이름 등 (개인정보 값은 넣지 않음)
+    ip = db.Column(db.String(45), nullable=True)  # IPv6 최대 길이
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), index=True)
+
+    __table_args__ = (db.Index("ix_audit_logs_action_created", "action", "created_at"),)

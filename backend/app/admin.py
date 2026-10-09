@@ -4,7 +4,7 @@
 - 전역 CSRFProtect (모든 비-GET 요청)
 - 역할 검사 (role == "admin")
 - limiter 로 요청 횟수 제한
-- 변경 작업은 [AUDIT] 로그로 남긴다
+- 변경 작업은 감사 로그(audit_logs 테이블 + 서버 로그)로 남긴다
 """
 import secrets
 import string
@@ -16,9 +16,11 @@ from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy import func
 
 from . import db, limiter
+from .audit import ACTION_LABELS, record_audit
 from .models import (
     TASK_KEYS,
     AttendanceSession,
+    AuditLog,
     Course,
     Enrollment,
     PointLedger,
@@ -44,17 +46,6 @@ def _require_admin():
     if user.role != "admin":
         return None, (jsonify(message="권한이 없습니다."), 403)
     return user, None
-
-
-def _audit(admin, action, target=None):
-    # 감사 로그: 누가(관리자) · 무엇을 · 누구에게 · 어디서
-    current_app.logger.warning(
-        "[AUDIT] admin_id=%s action=%s target_user_id=%s ip=%s",
-        admin.id,
-        action,
-        target.id if target else "-",
-        request.remote_addr,
-    )
 
 
 def _hash_password(raw):
@@ -141,8 +132,8 @@ def reset_user_password(user_id):
 
     temp_password = _generate_temp_password()
     target.password_hash = _hash_password(temp_password)
+    record_audit(admin, "reset_password", target)
     db.session.commit()
-    _audit(admin, "reset_password", target)
     # 임시 비밀번호는 이 응답에서 한 번만 노출 (DB에는 해시만 저장)
     return jsonify(message="임시 비밀번호가 발급되었습니다.", tempPassword=temp_password)
 
@@ -165,9 +156,9 @@ def delete_user(user_id):
         )
     for model in (Enrollment, TaskProgress, Reward, PointLedger, XpLedger, VerificationCode):
         model.query.filter_by(user_id=target.id).delete(synchronize_session=False)
+    record_audit(admin, "delete_user", target)  # 삭제 전에 아이디를 기록해 둠 (감사 로그는 회원과 함께 지우지 않음)
     db.session.delete(target)
     db.session.commit()
-    _audit(admin, "delete_user", target)
     return "", 204
 
 
@@ -192,8 +183,8 @@ def change_admin_password():
         return jsonify(message="새 비밀번호가 현재 비밀번호와 같습니다."), 400
 
     admin.password_hash = _hash_password(new_password)
+    record_audit(admin, "change_own_password")
     db.session.commit()
-    _audit(admin, "change_own_password")
     return jsonify(message="비밀번호가 변경되었습니다.")
 
 
@@ -550,4 +541,63 @@ def student_detail(user_id):
         pointsBySource=by_source(point_rows),
         xpBySource=by_source(xp_rows),
         recent=recent,
+    )
+
+
+# ── 감사 로그 조회 ───────────────────────────────────────────────
+
+AUDIT_PAGE_SIZE = 50
+
+
+@bp.get("/audit-logs")
+def list_audit_logs():
+    """감사 로그 최신순 조회 (동작 · 아이디로 필터, 50건씩 페이지)"""
+    admin, error = _require_admin()
+    if error:
+        return error
+
+    action = request.args.get("action", "").strip()
+    keyword = request.args.get("q", "").strip()[:80]
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except ValueError:
+        page = 1
+
+    query = AuditLog.query
+    if action:
+        if action not in ACTION_LABELS:
+            return jsonify(message="알 수 없는 동작입니다."), 400
+        query = query.filter(AuditLog.action == action)
+    if keyword:
+        like = f"%{keyword}%"  # SQLAlchemy 바인딩 → SQL Injection 안전
+        query = query.filter(
+            db.or_(AuditLog.actor_username.like(like), AuditLog.target_username.like(like))
+        )
+
+    total = query.count()
+    rows = (
+        query.order_by(AuditLog.id.desc())
+        .offset((page - 1) * AUDIT_PAGE_SIZE)
+        .limit(AUDIT_PAGE_SIZE)
+        .all()
+    )
+    return jsonify(
+        total=total,
+        page=page,
+        pageSize=AUDIT_PAGE_SIZE,
+        actions=[{"key": k, "label": v} for k, v in ACTION_LABELS.items()],
+        items=[
+            {
+                "id": r.id,
+                "createdAt": _to_kst(r.created_at).strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None,
+                "actor": r.actor_username,
+                "actorRole": r.actor_role,
+                "action": r.action,
+                "actionLabel": ACTION_LABELS.get(r.action, r.action),
+                "target": r.target_username,
+                "detail": r.detail,
+                "ip": r.ip,
+            }
+            for r in rows
+        ],
     )
